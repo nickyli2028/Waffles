@@ -1,0 +1,154 @@
+function update_fight()
+	if starting_fight then
+		start_fight()
+	else
+		player.spr = 66
+		move()
+		cust_move()
+		if btnp(❎) and player.action_time == 0 and player.lift == false then
+			pickup()
+			if player.lift == true then
+				player.punch = false
+				player.throw = false
+				player.action_time = 15
+			else
+				player.punch = true
+				player.action_time = 15
+				if punch() then
+					customer.health -= .07
+				end
+			end
+		elseif btnp(🅾️) and (player.action_time == 0 or player.lift == true) then
+			if	player.lift == true then
+				for item in all(throwables) do
+    				if item.lift == true then
+						item.lift = false
+    					item.air = true
+    					item.airx = item.x
+    					item.airy = item.y
+    					item.airdir = player.dir
+    					player.lift = false
+						player.throw = true
+    					player.action_time = 15
+    				end
+    			end
+			else
+				player.throw = true
+				player.action_time = 15
+				local proj = {
+				dir = player.dir,
+				x = player.x - 12,
+				y = player.y - 4,
+				tpe = 1
+				}
+				if proj.dir == 1 then
+					proj.x = player.x + 7
+				end
+				add(projectiles, proj)
+			end
+		end
+		update_projectiles()
+		update_throwables()
+		check_health()
+	end
+end
+
+function start_fight()
+	if player.x < 122 then
+		player.x += .3
+		player.y = (player.x-117)*(player.x-117) + 18
+		customer.x += .5
+		cam_coords.x += .3
+		if player.x < 114 then
+			player.spr = 76
+		elseif player.x < 120 then
+			player.spr = 78
+		else
+			player.spr = 66
+		end
+	elseif player.x < 149 then
+		player.spr = 66
+		player.x += .4
+		player.y = .24*(player.x-135)*(player.x-135) + 12
+		customer.spr = 132
+		customer.x +=.5
+		cam_coords.x +=.4
+		if player.x < 125 then
+			player.spr = 66
+		elseif player.x < 138 then
+			player.spr = 76
+		elseif player.x < 145 then
+			player.spr = 78
+		else
+			player.spr = 66
+		end
+	else
+		starting_fight = false
+	end
+end
+
+function draw_fight()
+	if player.action_time > 0 or player.lift == true then
+		if player.punch == true or player.throw == true then
+			player.spr = 68
+			player.action_time -= 1
+		elseif player.lift == true then
+			player.spr = 70
+		end
+	else
+		player.punch = false
+		player.lift = false
+	end
+	if customer.tpe == 2 then
+		pal(2, 8)
+		pal(1, 2)
+	elseif customer.tpe == 3 then
+		pal(2, 11)
+		pal(1, 3)
+	elseif customer.tpe == 4 then
+		pal(2, 10)
+		pal(1, 9)
+	end
+	spr(customer.spr, customer.x - 16, customer.y - 16, 4, 4, customer.dir == 1)
+	spr(139 + customer.tpe, customer.x - 4, customer.y - 16, 1, 1)
+	pal()
+	palt(11, t)
+	palt(0, f)
+	spr(player.spr, player.x - 8, player.y - 12, 2, 3, player.dir == 0)
+	rectfill(cam_coords.x, 104, cam_coords.x + 128, 128, 5)
+	
+	--player health
+	spr(64, cam_coords.x + 2, 105, 2, 2)
+	rect(cam_coords.x + 17, 110, cam_coords.x + 59, 115, 6)
+	rectfill(cam_coords.x + 18, 111, cam_coords.x + 18 + (40 * player.health), 114, 8)
+	
+	--customer health
+	if customer.tpe == 2 then
+		pal(2, 8)
+		pal(1, 2)
+	elseif customer.tpe == 3 then
+		pal(2, 11)
+		pal(1, 3)
+	elseif customer.tpe == 4 then
+		pal(2, 10)
+		pal(1, 9)
+	end
+	spr(133, cam_coords.x + 111, 105, 2, 2)
+	spr(139 + customer.tpe, cam_coords.x + 115, 105, 1, 1)
+	pset(cam_coords.x + 126, 120, 5)
+	pset(cam_coords.x + 127, 120, 5)
+	pal()
+	palt(11, t)
+	palt(0, f)
+	rect(cam_coords.x + 65, 110, cam_coords.x + 107, 115, 6)
+	rectfill(cam_coords.x + 66, 111, cam_coords.x + 66 + (40 * customer.health), 114, 8)
+	
+	--draw bullets
+	for proj in all(projectiles) do
+		if proj.tpe == 0 then
+			spr(16, proj.x, proj.y, 1, 1, proj.dir == 1)
+		elseif proj.tpe == 1 then
+			spr(17, proj.x, proj.y, 1, 1, proj.dir == 1)
+		end
+	end
+end
