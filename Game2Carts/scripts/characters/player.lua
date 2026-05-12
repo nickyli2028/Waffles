@@ -19,23 +19,25 @@ function pickup()
 			if player.dir == 0 then
 				reach = player.x - 8
 			end
-			if item.tpe == 0 then
-				if reach < item.x + 8
-					and reach > item.x
-					and player.y < item.y + 8
-					and player.y > item.y - 16 then
-					item.lift = true
-					player.lift = true
-					player.action_time = 0
-				end
-			else
-				if reach < item.x + 16
-					and reach > item.x
-					and player.y < item.y + 8
-					and player.y > item.y - 16 then
-					item.lift = true
-					player.lift = true
-					player.action_time = 0
+			if player.lift == false then
+				if item.tpe == 0 then
+					if reach < item.x + 8
+						and reach > item.x
+						and player.y < item.y + 8
+						and player.y > item.y - 16 then
+						item.lift = true
+						player.lift = true
+						player.action_time = 0
+					end
+				else
+					if reach < item.x + 16
+						and reach > item.x
+						and player.y < item.y + 8
+						and player.y > item.y - 16 then
+						item.lift = true
+						player.lift = true
+						player.action_time = 0
+					end
 				end
 			end
 		end
@@ -84,10 +86,10 @@ function move()
 		player.dir = 0
 	end
 
-	if player.x < -76 then
-		player.x = -76
-	elseif player.x > 312 then
-		player.x = 312
+	if player.x < 12 then
+		player.x = 12
+	elseif player.x > 316 then
+		player.x = 316
 	end
 
 	if player.y > floor then
@@ -105,10 +107,10 @@ function move()
 		cam_coords.x = player.x - 20
 	end
 	
-	if cam_coords.x < -80 then
-		cam_coords.x = -80
-	elseif cam_coords.x > 192 then
-		cam_coords.x = 192
+	if cam_coords.x < 0 then
+		cam_coords.x = 0
+	elseif cam_coords.x > 200 then
+		cam_coords.x = 200
 	end
 
 end

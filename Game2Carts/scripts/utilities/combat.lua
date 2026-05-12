@@ -37,6 +37,12 @@ function update_throwables()
 			if item.y > 56 then
 				item.air = false
 				item.y = 56
+				if item.x > 320 then
+					item.x = 304
+				end
+				if item.x < 0 then
+					item.x = 0
+				end
 				if item.x < customer.x + 12
 				and item.x > customer.x - 12 then
 					customer.health -= .2
@@ -81,6 +87,6 @@ function check_health()
 		customer.health = 0
 	end
 	if player.health == 0 or customer.health == 0 then
-		game_state = 2
+		game_state = 3
 	end
 end

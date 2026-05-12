@@ -11,6 +11,8 @@ __lua__
 #include scripts/utilities/gameover.lua
 #include scripts/utilities/keyboard.lua
 #include scripts/utilities/menu.lua
+#include scripts/utilities/service.lua
+#include scripts/utilities/closed.lua
 
 __gfx__
 00000000bbbbbbbb555555550000666666666666aaaaaaaa55555555555555550000000000000000000000000000000000000000000000000000000000000000

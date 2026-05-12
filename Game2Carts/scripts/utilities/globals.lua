@@ -8,6 +8,7 @@ player.w = 8
 player.h = 12
 player.spr = 64
 player.dir = 1
+player.inv = {{"waffle", 0}, {"sweat tea", 0}, {"porkchop", 0}, {"steak", 0}, {"hashbrown", 0}, {"egg", 0}, {"toast", 0}}
 player.health = 1.0
 player.lift = false
 player.throw = false
@@ -15,7 +16,7 @@ player.punch = false
 player.action_time = 0
 
 customer = {}
-customer.x = 154
+customer.x = 240
 customer.y = 56
 customer.w = 16
 customer.h = 16
@@ -23,18 +24,21 @@ customer.tpe = 0
 customer.spr = 128
 customer.dir = 0
 customer.health = 1.0
+customer.order = {{"waffle", 0}, {"sweat tea", 0}, {"porkchop", 0}, {"steak", 0}, {"hashbrown", 0}, {"egg", 0}, {"toast", 0}}
 
 cam_coords = {x = 80, y = 0}
 
 game_state = 0
 --[[game states
-	0: dialog
-	1: customer fighting
-	2: game over
-	3: keyboard
-    4: main menu
+	0: service
+	1: talking
+	2: customer fighting
+	3: game over
+	4: closed
+	5: keyboard
+    6: main menu
 	]]
-dialogue = 0
+dialogue = -1
 option = 0
 starting_fight = false
 

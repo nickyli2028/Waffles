@@ -99,22 +99,7 @@ function draw_fight()
 		player.punch = false
 		player.lift = false
 	end
-	if customer.tpe == 2 then
-		pal(2, 8)
-		pal(1, 2)
-	elseif customer.tpe == 3 then
-		pal(2, 11)
-		pal(1, 3)
-	elseif customer.tpe == 4 then
-		pal(2, 10)
-		pal(1, 9)
-	end
-	spr(customer.spr, customer.x - 16, customer.y - 16, 4, 4, customer.dir == 1)
-	spr(139 + customer.tpe, customer.x - 4, customer.y - 16, 1, 1)
-	pal()
-	palt(11, t)
-	palt(0, f)
-	spr(player.spr, player.x - 8, player.y - 12, 2, 3, player.dir == 0)
+	drawPC()
 	rectfill(cam_coords.x, 104, cam_coords.x + 128, 128, 5)
 	
 	--player health

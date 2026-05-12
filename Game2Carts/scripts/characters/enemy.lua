@@ -6,10 +6,10 @@ function cust_move()
 		customer.x -= .2
 	end
 	
-	if customer.x > 200 then
-		customer.x = 200
-	elseif customer.x < 50 then
-		customer.x = 50
+	if customer.x > 312 then
+		customer.x = 312
+	elseif customer.x < 0 then
+		customer.x = 0
 	end
 	
 	--customer always faces player
