@@ -1,16 +1,16 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
-#include globals.lua
-#include talk.lua
-#include fight.lua
-#include player.lua
-#include enemy.lua
-#include combat.lua
-#include gameover.lua
-#include main.lua
-#include keyboard.lua
-#include menu.lua
+#include scripts/utilities/main.lua
+#include scripts/utilities/globals.lua
+#include scripts/characters/talk.lua
+#include scripts/utilities/fight.lua
+#include scripts/characters/player.lua
+#include scripts/characters/enemy.lua
+#include scripts/utilities/combat.lua
+#include scripts/utilities/gameover.lua
+#include scripts/utilities/keyboard.lua
+#include scripts/utilities/menu.lua
 
 __gfx__
 00000000bbbbbbbb555555550000666666666666aaaaaaaa55555555555555550000000000000000000000000000000000000000000000000000000000000000
