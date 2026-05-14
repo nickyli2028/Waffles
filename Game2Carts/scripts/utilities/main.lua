@@ -96,6 +96,12 @@ function _draw()
 			spr(20, item.x, item.y - 8, 2, 3, item.dir == 1)
 		end
 	end
+	spr(40, 66, 40, 2, 2)
+	spr(8, 80, 40, 2, 2)
+	spr(12, 8, 40, 2, 4)
+	spr(10, 24, 56, 2, 2)
+	spr(10, 40, 56, 2, 2)
+
 	if game_state == 0 then
 		draw_service()
 	elseif game_state == 1 then
