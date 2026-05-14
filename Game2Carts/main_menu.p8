@@ -14,9 +14,38 @@ vol = 4
 anim_frame = 0
 anim_timer = 0
 frames = {80, 97, 113, 97, 80}
+-- transition state
+fade = 0
+fading = -1
+on_fade_done = nil
+fade_state = -1
+
+fadetable0={
+ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+ {1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
+ {2,2,2,2,2,2,1,1,1,0,0,0,0,0,0},
+ {3,3,3,3,3,3,1,1,1,0,0,0,0,0,0},
+ {4,4,4,2,2,2,2,2,1,1,0,0,0,0,0},
+ {5,5,5,5,5,1,1,1,1,1,0,0,0,0,0},
+ {6,6,13,13,13,13,5,5,5,5,1,1,1,0,0},
+ {7,6,6,6,6,13,13,13,5,5,5,1,1,0,0},
+ {8,8,8,8,2,2,2,2,2,2,0,0,0,0,0},
+ {9,9,9,4,4,4,4,4,4,5,5,0,0,0,0},
+ {10,10,9,9,9,4,4,4,5,5,5,5,0,0,0},
+ {11,11,11,3,3,3,3,3,3,3,0,0,0,0,0},
+ {12,12,12,12,12,3,3,1,1,1,1,1,1,0,0},
+ {13,13,13,5,5,5,5,1,1,1,1,1,0,0,0},
+ {14,14,14,13,4,4,2,2,2,2,2,1,1,0,0},
+ {15,15,6,13,13,13,5,5,5,5,5,1,1,0,0}
+}
+
 
 mbutts = {
-    "start", function() load("waffles_eric.p8") end,
+    "start", function()
+        fade_to_black(function()
+            load("waffles_erics_copy.p8")
+        end)
+    end,
     "options", function() splash_state = 5 end,
     "credits", function() splash_state = 3 end,
     "quit", function() splash_state = 4 end
@@ -24,6 +53,12 @@ mbutts = {
 
 function _init()
     music(0)
+    menuitem(1, "before customer combat", function()
+    load("waffles_erics_copy.p8")
+  end)
+    menuitem(2, "between levels", function()
+    load("between_level.p8")
+  end)
 end
 
 function _update()
@@ -35,6 +70,10 @@ function _update()
         anim_timer = 0
         anim_frame = (anim_frame + 1) % #frames
     end
+    transition_update()
+
+    -- block input while fading
+    if is_fading() then return end
 
     if splash_state == 0 then
         splash_timer += 1/30
@@ -68,11 +107,12 @@ end
 
 function _draw()
     cls()
+    --pal()
     palt(0, false)
     if splash_state == 0 or splash_state == 1 then
         if ticks % 30 < 15 then frame = 24 end
-        local sx = (frame % 16) * 8
-        local sy = flr(frame / 16) * 8
+        --local sx = (frame % 16) * 8
+        --local sy = flr(frame / 16) * 8
         camera(0, 0)
         map(0, 0, 0, 0, 8, 8)
     end
@@ -141,6 +181,47 @@ function _draw()
         print("<  >", 48, cam_target+55, 6)
         print("[z] to go back", 20, cam_target+85, 6)
     end
+    transition_draw()
+end
+
+function apply_fade0(i)
+ for c=0,15 do
+  if i >= 15 then
+   pal(c, 0, 1)
+  else
+   pal(c, fadetable0[c+1][i+1], 1)
+  end
+ end
+end
+
+function is_fading()
+ return fading > -1
+end
+
+function fade_to_black(callback)
+ fading = 0
+ fade = 0
+ on_fade_done = callback
+end
+
+function transition_update()
+ if fading > -1 then
+  if fade < 15 then
+   fade += 0.5
+  else
+   if on_fade_done then
+    on_fade_done()
+    on_fade_done = nil
+   end
+   fading = -1
+  end
+ end
+end
+
+function transition_draw()
+  if fading == 0 then
+    apply_fade0(flr(fade))
+  end
 end
 __gfx__
 00000007dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd70000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000000000
