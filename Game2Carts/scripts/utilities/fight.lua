@@ -83,6 +83,7 @@ function start_fight()
 			player.spr = 66
 		end
 	else
+		player.y = 60
 		starting_fight = false
 	end
 end
