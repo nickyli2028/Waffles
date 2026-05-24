@@ -1,6 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
+#include scripts/utilities/rain.lua
 splash_state = 0
 splash_timer = 0
 splash_delay = 2
@@ -59,6 +60,7 @@ function _init()
     menuitem(2, "between levels", function()
     load("between_level.p8")
   end)
+  particlesys=new_particle_system(512)
 end
 
 function _update()
@@ -71,6 +73,10 @@ function _update()
         anim_frame = (anim_frame + 1) % #frames
     end
     transition_update()
+
+    --rain update
+    particlesys.rain()
+    particlesys.update()
 
     -- block input while fading
     if is_fading() then return end
@@ -127,6 +133,8 @@ function _draw()
 
     palt(11, true)
     sspr(frames[anim_frame+1], 40, 16, 24, 11, 180)
+
+    particlesys.draw()
 
     -- menu options
     if splash_state == 2 then
