@@ -1,10 +1,10 @@
 npcs = {}
 
-function make_npc(x, y, spr_id, path, msg, shirt_color, hair_color)
+function make_npc(x, y, spr_id, path, name, shirt_color, hair_color)
   return {
     x = x, y = y,
     spr_id = spr_id,
-    msg = msg,
+    name = name,
     path = path,
     path_i = 1,
     steps_left = #path > 0 and path[1].steps or 0,
@@ -14,8 +14,8 @@ function make_npc(x, y, spr_id, path, msg, shirt_color, hair_color)
   }
 end
 
-function spawn_npc(x, y, spr_id, path, msg, shirt_color, hair_color)
-  add(npcs, make_npc(x, y, spr_id, path, msg, shirt_color, hair_color))
+function spawn_npc(x, y, spr_id, path, name, shirt_color, hair_color)
+  add(npcs, make_npc(x, y, spr_id, path, name, shirt_color, hair_color))
 end
 
 function update_npcs()

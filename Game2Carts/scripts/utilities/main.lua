@@ -1,4 +1,5 @@
 function _init()
+	cartdata("fightbufferv1")
 	cls()
 	prev_t = time()
 	

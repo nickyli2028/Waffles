@@ -48,9 +48,8 @@ function interact(tile)
     prev_mode = mode
     mode = "task_order"
   elseif type_ == "fight" then
-    start_fight()
+    trigger_enemy_fight()
   end
-
   if objects then
     for i, obj in pairs(objects) do
       if type_ == obj.name then
@@ -102,58 +101,12 @@ function draw_combat_interact_prompt()
 end
 
 -- textbox system
-function tb_init(voice, string)
-  reading = true
-  tb = {
-    str = string,
-    voice = voice,
-    i = 1,
-    cur = 0,
-    char = 0,
-    x = 0,
-    y = 106,
-    w = 127,
-    h = 21,
-    col1 = 0,
-    col2 = 7,
-    col3 = 7,
-  }
-end
-
-function tb_update()
-  if tb.char < #tb.str[tb.i] then
-    tb.cur += 0.5
-    if tb.cur > 0.9 then
-      tb.char += 1
-      tb.cur = 0
-      if (ord(tb.str[tb.i], tb.char) != 32) sfx(tb.voice)
-    end
-    if (btnp(5)) tb.char = #tb.str[tb.i]
-  elseif btnp(5) then
-    if #tb.str > tb.i then
-      tb.i += 1
-      tb.cur = 0
-      tb.char = 0
-    else
-      reading = false
-    end
-  end
-end
-
-function tb_draw()
-  if reading then
-    rectfill(cam_x + tb.x, cam_y + tb.y, cam_x + tb.x + tb.w, cam_y + tb.y + tb.h, tb.col1)
-    rect(cam_x + tb.x, cam_y + tb.y, cam_x + tb.x + tb.w, cam_y + tb.y + tb.h, tb.col2)
-    print(sub(tb.str[tb.i], 1, tb.char), cam_x + tb.x + 2, cam_y + tb.y + 2, tb.col3)
-  end
-end
-
 function show_message(msg)
-  tb_init(0, type(msg) == "table" and msg or {msg})
+    tb_init(0, type(msg) == "table" and msg or {msg})
 end
 
 function draw_message()
-  tb_draw()
+    tb_draw()
 end
 
 function draw_interact_prompt()
@@ -178,4 +131,16 @@ function check_interact_input()
       interact(nearby)
     end
   end
+end
+
+function check_street_trigger(x, y)
+    local px = flr(x / 8)
+    local py = flr(y / 8)
+    local tile = mget(px, py)
+    
+    -- check if tile has flag 1 set
+    if fget(tile, 1) then
+        return true
+    end
+    return false
 end

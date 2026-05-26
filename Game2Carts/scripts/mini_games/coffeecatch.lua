@@ -1,11 +1,4 @@
--- =============================================
--- coffee catch mini game
--- catch falling coffee drops with your pot
--- controls: left/right = move pot
--- =============================================
--- save data slots:
---   dget(12) = coffee catch high score
--- =============================================
+
 
 local CC_IDLE    = 0
 local CC_PLAYING = 1

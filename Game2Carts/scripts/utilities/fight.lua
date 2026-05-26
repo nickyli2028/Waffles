@@ -5,11 +5,11 @@ function update_fight()
 		player.spr = 66
 		move()
 		cust_move()
-    update_hit_flash()
+		update_hit_flash()
+		update_enemy_ai()
 
-    -- ── attack inputs 
-    if btnp(4) and player.action_time == 0 and player.lift == false then
-      -- z: punch or pick up
+		-- ── attack inputs 
+		if btnp(4) and player.action_time == 0 and player.lift == false then
 			pickup()
 			if player.lift == true then
 				player.punch = false
@@ -18,46 +18,44 @@ function update_fight()
 			else
 				player.punch = true
 				player.action_time = 15
-                try_punch()   -- handles hit check + damage internally
-				end
+				try_punch()
+			end
 
-    elseif btnp(5) and (player.action_time == 0 or player.lift == true) then
-      -- x: throw held item, or fire a ranged shot
-      if player.lift == true then
+		elseif btnp(5) and (player.action_time == 0 or player.lift == true) then
+			if player.lift == true then
 				for item in all(throwables) do
-    				if item.lift == true then
-						item.lift    = false
-						item.air     = true
-						item.airx    = item.x
-						item.airy    = item.y
-						item.airdir  = player.dir
+					if item.lift == true then
+						item.lift   = false
+						item.air    = true
+						item.airx   = item.x
+						item.airy   = item.y
+						item.airdir = player.dir
 						player.lift  = false
 						player.throw = true
-    					player.action_time = 15
-    				end
-    			end
-			else
-        -- enforce cap before spawning a new projectile
-        local count = 0
-        for _ in all(projectiles) do count += 1 end
-        if count < MAX_PROJECTILES then
-				player.throw = true
-				player.action_time = 15
-				local proj = {
-            dir  = player.dir,
-            x    = player.x - 12,
-            y    = player.y - 4,
-            tpe  = 1,
-            w    = PROJ_SIZE,
-            h    = PROJ_SIZE,
-				}
-				if proj.dir == 1 then
-					proj.x = player.x + 7
+						player.action_time = 15
+					end
 				end
-				add(projectiles, proj)
+			else
+				local count = 0
+				for _ in all(projectiles) do count += 1 end
+				if count < MAX_PROJECTILES then
+					player.throw = true
+					player.action_time = 15
+					local proj = {
+						dir = player.dir,
+						x   = player.x - 12,
+						y   = player.y - 4,
+						tpe = 1,
+						w   = PROJ_SIZE,
+						h   = PROJ_SIZE,
+					}
+					if proj.dir == 1 then
+						proj.x = player.x + 7
+					end
+					add(projectiles, proj)
+				end
 			end
 		end
-    end
 
 		update_projectiles()
 		update_throwables()
@@ -113,6 +111,13 @@ function draw_fight()
         player.lift  = false
 	end
 	drawPC()
+	  -- telegraph warning indicator
+	if customer.telegraph_flash then
+		local ex = customer.x - cam_coords.x - 4
+		local ey = customer.y - 28
+		print("!", ex + cam_coords.x, ey, 8)  -- red !
+		print("!", ex + cam_coords.x - 1, ey, 7)  -- white outline
+	end
 	rectfill(cam_coords.x, 104, cam_coords.x + 128, 128, 5)
 	
 	--player health
@@ -131,10 +136,14 @@ function draw_fight()
 		pal(2, 10)
 		pal(1, 9)
 	end
-  -- hit flash: briefly invert enemy colours
-  if customer.hit_flash and customer.hit_flash > 0 then
-    pal(2, 7) pal(1, 7)
-  end
+	-- telegraph pulse overrides colour (white flash warning)
+	if customer.telegraph_flash then
+		for i = 0, 15 do pal(i, 7) end
+	end
+	-- hit flash overrides everything
+	if customer.hit_flash and customer.hit_flash > 0 then
+		pal(2, 7) pal(1, 7)
+	end
 
 	spr(133, cam_coords.x + 111, 105, 2, 2)
 	spr(139 + customer.tpe, cam_coords.x + 115, 105, 1, 1)

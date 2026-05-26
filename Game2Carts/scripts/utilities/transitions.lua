@@ -1,6 +1,6 @@
 fade = 0
 fading = -1         -- -1 = inactive
-on_fade_done = nil  -- callback when fade hits 0
+on_fade_done = nil 
 
 -- -1 = not started, 0 = running, 1 = done
 fade_state = -1

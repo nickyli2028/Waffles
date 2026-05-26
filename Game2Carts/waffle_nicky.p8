@@ -1,90 +1,753 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
-#include scripts/utilities/main.lua
-#include scripts/utilities/globals.lua
-#include scripts/utilities/talk.lua
-#include scripts/utilities/fight.lua
-#include scripts/characters/player.lua
-#include scripts/characters/enemy.lua
-#include scripts/utilities/combat.lua
-#include scripts/utilities/gameover.lua
-#include scripts/utilities/keyboard.lua
-#include scripts/utilities/menu.lua
-#include scripts/utilities/service.lua
-#include scripts/utilities/closed.lua
-#include scripts/utilities/enemy_registry.lua
+g = {x=0,y=149.2}
+floor = 60
+
+player = {}
+player.x = 111
+player.y = 60
+player.w = 8
+player.h = 12
+player.spr = 64
+player.dir = 1
+player.inv = {{"waffle", 0}, {"sweat tea", 0}, {"porkchop", 0}, {"steak", 0}, {"hashbrown", 0}, {"egg", 0}, {"toast", 0}}
+player.health = 1.0
+player.lift = false
+player.throw = false
+player.punch = false
+player.action_time = 0
+
+customer = {}
+customer.x = 240
+customer.y = 56
+customer.w = 16
+customer.h = 16
+customer.tpe = 0
+customer.spr = 128
+customer.dir = 0
+customer.health = 1.0
+customer.order = {{"waffle", 0}, {"sweat tea", 0}, {"porkchop", 0}, {"steak", 0}, {"hashbrown", 0}, {"egg", 0}, {"toast", 0}}
+
+cam_coords = {x = 80, y = 0}
+
+game_state = 0
+dialogue = -1
+option = 0
+starting_fight = false
+
+projectiles = {}
+throwables = {}
+
+ticks = 0
 
 function _init()
-  cartdata("fightbufferv1")  -- must be first, before any dget
-  menuitem(1, "main menu", function() load("main_menu.p8") end)
-  menuitem(2, "between levels", function() load("between_level.p8") end)
+	--start game time
+	prev_t = time()
+	
+	music(1)
+	
+	local rndtpe = rnd(100)
+	
+	customer.tpe = flr(rnd(4)) + 1
+	
+	for i = 0, 9 do
+		local item = {
+			x = 0,
+			y = 56,
+			tpe = 1,
+			lifted = false,
+			air = false,
+			airx = 0,
+			airy = 0,
+			dir = 0
+		}
+		if i == 0 then
+			item.x = 137
+			item.tpe = 0
+		elseif i == 1 then
+			item.x = 192
+		elseif i == 2 then
+			item.x = 240
+		elseif i == 3 then
+			item.x = 288
+		else
+			item.tpe = 2
+			if i == 4 then
+				item.x = 176
+			elseif i == 5 then
+				item.x = 208
+				item.dir = 1
+			elseif i == 6 then
+				item.x = 224
+			elseif i == 7 then
+				item.x = 256
+				item.dir = 1
+			elseif i == 8 then
+				item.x = 272
+			else
+				item.x = 304
+				item.dir = 1
+			end
+		end
+		add(throwables, item)
+	end
 
-  cls()
-  prev_t = time()
-  music(1)
+	--menu: waffle, sweat tea, porkchop, steak, hashbrown, egg, toast
+	for i = 1, 7 do
+		local val = flr(rnd(10))
+		customer.order[i][2] += val
+	end
 
-  customer.tpe = flr(rnd(4)) + 1
-
-  for i = 0, 9 do
-    local item = {
-      x = 0, y = 56, tpe = 1,
-      lifted = false, air = false,
-      airx = 0, airy = 0, dir = 0
-    }
-    if i == 0 then
-      item.x = 137 item.tpe = 0
-    elseif i == 1 then item.x = 192
-    elseif i == 2 then item.x = 240
-    elseif i == 3 then item.x = 288
-    else
-      item.tpe = 2
-      if     i == 4 then item.x = 176
-      elseif i == 5 then item.x = 208 item.dir = 1
-      elseif i == 6 then item.x = 224
-      elseif i == 7 then item.x = 256 item.dir = 1
-      elseif i == 8 then item.x = 272
-      else              item.x = 304 item.dir = 1
-      end
-    end
-    add(throwables, item)
-  end
-
-  for i = 1, 7 do
-    customer.order[i][2] += flr(rnd(10))
-  end
-
-  game_state = 0
-  starting_fight = false
-
-  local diff_list = {"easy", "medium", "hard"}
-  local e = {
-    difficulty = diff_list[dget(0) + 1] or "medium",
-    abilities  = {},
-  }
-  if dget(1) == 1 then add(e.abilities, "rush")  end
-  if dget(2) == 1 then add(e.abilities, "shoot") end
-  if dget(3) == 1 then add(e.abilities, "throw") end
-  setup_enemy_ai(e)
 end
 
-function _update()
+function _update60()
+	ticks += 1
+	if ticks == 60 then
+		ticks = 1
+	end
+	if game_state == 0 then
+		update_service()
+	elseif game_state == 1 then
+		update_talk()
+	elseif game_state == 2 then
+		update_fight()
+	elseif game_state == 3 then
+		update_gameover()
+	end
+end
 
+function _draw()
+	palt(11, t)
+	palt(0, f)
+	cls(11)
+	map(0, 0, 0, 0, 41, 16)
+	camera(cam_coords.x, cam_coords.y)
+	
+	rectfill(122, 56, 131, 58, 6)
+	
+	for item in all(throwables) do
+		if item.tpe == 0 then
+			spr(1, item.x, item.y, 1, 1)
+			spr(18, item.x, item.y + 8, 1, 1)
+		elseif item.tpe == 1 then
+			spr(32, item.x, item.y, 2, 2)
+		else
+			spr(20, item.x, item.y - 8, 2, 3, item.dir == 1)
+		end
+	end
+	if game_state == 0 then
+		draw_service()
+	elseif game_state == 1 then
+		draw_talk()
+	elseif game_state == 2 then
+		draw_fight()
+	elseif game_state == 3 then
+		draw_gameover()
+	end
+end
+
+--draws player and customer
+function drawPC()
+	if customer.tpe == 2 then
+		pal(2, 8)
+		pal(1, 2)
+	elseif customer.tpe == 3 then
+		pal(2, 11)
+		pal(1, 3)
+	elseif customer.tpe == 4 then
+		pal(2, 10)
+		pal(1, 9)
+	end
+	spr(customer.spr, customer.x - 16, customer.y - 16, 4, 4)
+	spr(139 + customer.tpe, customer.x - 4, customer.y - 16, 1, 1)
+	pal()
+	palt(11, t)
+	palt(0, f)
+	spr(player.spr, player.x - 8, player.y - 12, 2, 3, player.dir == 0)
+end
+-->8
+--service
+function update_service()
+	service_move()
+	if customer.x > 154 then
+		customer.x -= .5
+	end
+
+	if customer.x - player.x < 50 then
+		if dialogue == #player.inv + 1 then
+			if btnp(⬆️) or btnp(⬇️) then
+				option += 1
+				option %= 2
+			end
+			if btnp(❎) then
+				if option == 0 then
+					game_state = 2
+					starting_fight = true
+					music(27)
+				else
+					dialogue = -1
+				end
+			end
+		elseif btnp(❎) then
+			dialogue += 1
+			if dialogue > 0 then
+				while dialogue <= #customer.order and customer.order[dialogue][2] == 0 do
+					dialogue += 1
+				end
+			end
+			if dialogue > #player.inv + 1 then
+				dialogue = -1
+			end
+		elseif dialogue == -1 then
+			service_move()
+		end
+	else
+		service_move()
+	end
+
+end
+
+function service_move()
+	local dx = 0
+	if btn(➡️) then
+		dx += .5
+	end
+	if btn(⬅️) then
+		dx -= .5
+	end
+	if dx < 0 then
+		player.dir = 0
+	elseif dx > 0 then
+		player.dir = 1
+	end
+
+	player.x += dx
+
+	if player.x < 12 then
+		player.x = 12
+	elseif player.x > 116 then
+		player.x = 116
+	end
+
+	if player.x < 100 then
+		if cam_coords.x > 0 then
+			cam_coords.x -= 2
+		end
+	else
+		if cam_coords.x < 80 then
+			cam_coords.x += 2
+		end
+	end
+end
+
+function draw_service()
+	drawPC()
+	rectfill(cam_coords.x, 104, cam_coords.x + 128, 128, 0)
+	if dialogue == -1 then
+		if customer.x - player.x < 50 then
+			print("talk with ❎", 155, 120, 7)
+		end
+	else
+		rectfill(80, 80, 208, 128, 0)
+		rect(80, 80, 207, 127, 10)
+		if dialogue == 0 then
+			print("customer: i want... uhhh...", 85, 85, 7)
+			print("continue with ❎", 140, 120)
+		else
+			if dialogue < #customer.order + 1 then
+				print("customer: " .. customer.order[dialogue][2] .. " " .. customer.order[dialogue][1], 85, 85, 7)
+				print("continue with ❎", 140, 120)
+			else
+				print("fight", 95, 85, 7)
+				print("okay", 95, 93)
+				if option == 0 then
+					print("◆", 85, 85, 7)
+				else
+					print("◆", 85, 93, 7)
+				end
+			end
+		end
+	end
+end
+-->8
+--talking
+
+function update_talk()
+	if dialogue == 0 then
+		if btnp(❎) then
+			dialogue = 1
+		end
+	elseif dialogue == 1 then
+		if btnp(⬆️) or btnp(⬇️) then
+			option += 1
+			option %= 2
+		end
+		if btnp(❎) then
+			if option == 0 then
+				game_state = 2
+				starting_fight = true
+				music(27)
+			else
+				game_state = 3
+			end
+		end
+	end
+end
+
+function draw_talk()
+	drawPC()
+	rectfill(80, 80, 208, 128, 0)
+	rect(80, 80, 207, 127, 10)
+	if dialogue == 0 then
+		print("customer: i asked for a", 85, 85, 7)
+		print("cheeseburger with no cheese")
+		print("continue with ❎", 140, 120) 
+	else
+		print("fight", 95, 85, 7)
+		print("okay", 95, 93)
+		if option == 0 then
+			print("◆", 85, 85, 7)
+		else
+			print("◆", 85, 93, 7)
+		end
+	end
+end
+-->8
+--fighting
+
+function update_fight()
+	if starting_fight then
+		start_fight()
+	else
+		player.spr = 66
+		move()
+		cust_move()
+		if btnp(❎) and player.action_time == 0 and player.lift == false then
+			pickup()
+			if player.lift == true then
+				player.punch = false
+				player.throw = false
+				player.action_time = 15
+			else
+				player.punch = true
+				player.action_time = 15
+				if punch() then
+					customer.health -= .07
+				end
+			end
+		elseif btnp(🅾️) and (player.action_time == 0 or player.lift == true) then
+			if	player.lift == true then
+				for item in all(throwables) do
+    				if item.lift == true then
+						item.lift = false
+    					item.air = true
+    					item.airx = item.x
+    					item.airy = item.y
+    					item.airdir = player.dir
+    					player.lift = false
+						player.throw = true
+    					player.action_time = 15
+    				end
+    			end
+			else
+				player.throw = true
+				player.action_time = 15
+				local proj = {
+				dir = player.dir,
+				x = player.x - 12,
+				y = player.y - 4,
+				tpe = 1
+				}
+				if proj.dir == 1 then
+					proj.x = player.x + 7
+				end
+				add(projectiles, proj)
+			end
+		end
+		update_projectiles()
+		update_throwables()
+		check_health()
+	end
+end
+
+function start_fight()
+	if player.x < 122 then
+		player.x += .3
+		player.y = (player.x-117)*(player.x-117) + 18
+		customer.x += .5
+		cam_coords.x += .3
+		if player.x < 114 then
+			player.spr = 76
+		elseif player.x < 120 then
+			player.spr = 78
+		else
+			player.spr = 66
+		end
+	elseif player.x < 149 then
+		player.spr = 66
+		player.x += .4
+		player.y = .24*(player.x-135)*(player.x-135) + 12
+		customer.spr = 132
+		customer.x +=.5
+		cam_coords.x +=.4
+		if player.x < 125 then
+			player.spr = 66
+		elseif player.x < 138 then
+			player.spr = 76
+		elseif player.x < 145 then
+			player.spr = 78
+		else
+			player.spr = 66
+		end
+	else
+		starting_fight = false
+	end
+end
+
+function punch()
+	if player.dir == 0 then
+		return player.x - 8 < customer.x + 8
+					and player.x - 8 > customer.x - 8
+					and player.y < customer.y + 10
+					and player.y > customer.y - 16
+	else
+		return player.x + 8 < customer.x + 8
+					and player.x + 8 > customer.x - 8
+					and player.y < customer.y + 10
+					and player.y > customer.y - 16
+	end
+end
+
+function pickup()
+	if btnp(❎) and player.lift == false then
+		for item in all(throwables) do
+			local reach = player.x + 8
+			if player.dir == 0 then
+				reach = player.x - 8
+			end
+			if player.lift == false then
+				if item.tpe == 0 then
+					if reach < item.x + 8
+						and reach > item.x
+						and player.y < item.y + 8
+						and player.y > item.y - 16 then
+						item.lift = true
+						player.lift = true
+						player.action_time = 0
+					end
+				else
+					if reach < item.x + 16
+						and reach > item.x
+						and player.y < item.y + 8
+						and player.y > item.y - 16 then
+						item.lift = true
+						player.lift = true
+						player.action_time = 0
+					end
+				end
+			end
+		end
+	end
+end
+
+function check_health()
+	if player.health < 0 then
+		player.health = 0
+	elseif customer.health < 0 then
+		customer.health = 0
+	end
+	if player.health == 0 or customer.health == 0 then
+		game_state = 3
+	end
+end
+
+function draw_fight()
+	if player.action_time > 0 or player.lift == true then
+		if player.punch == true or player.throw == true then
+			player.spr = 68
+			player.action_time -= 1
+		elseif player.lift == true then
+			player.spr = 70
+		end
+	else
+		player.punch = false
+		player.lift = false
+	end
+	drawPC()
+	rectfill(cam_coords.x, 104, cam_coords.x + 128, 128, 5)
+	
+	--player health
+	spr(64, cam_coords.x + 2, 105, 2, 2)
+	rect(cam_coords.x + 17, 110, cam_coords.x + 59, 115, 6)
+	rectfill(cam_coords.x + 18, 111, cam_coords.x + 18 + (40 * player.health), 114, 8)
+	
+	--customer health
+	if customer.tpe == 2 then
+		pal(2, 8)
+		pal(1, 2)
+	elseif customer.tpe == 3 then
+		pal(2, 11)
+		pal(1, 3)
+	elseif customer.tpe == 4 then
+		pal(2, 10)
+		pal(1, 9)
+	end
+	spr(133, cam_coords.x + 111, 105, 2, 2)
+	spr(139 + customer.tpe, cam_coords.x + 115, 105, 1, 1)
+	pset(cam_coords.x + 126, 120, 5)
+	pset(cam_coords.x + 127, 120, 5)
+	pal()
+	palt(11, t)
+	palt(0, f)
+	rect(cam_coords.x + 65, 110, cam_coords.x + 107, 115, 6)
+	rectfill(cam_coords.x + 66, 111, cam_coords.x + 66 + (40 * customer.health), 114, 8)
+	
+	--draw bullets
+	for proj in all(projectiles) do
+		if proj.tpe == 0 then
+			spr(16, proj.x, proj.y, 1, 1, proj.dir == 1)
+		elseif proj.tpe == 1 then
+			spr(17, proj.x, proj.y, 1, 1, proj.dir == 1)
+		end
+	end
+end
+-->8
+--movement
+
+--player movement speed
+player.accel = 40
+player.vely = 0.3
+player.jumpvel = {x=0,y=-100}
+player.jumping = false
+player.jumpdur = 0.8
+player.jumpt = 0
+player.canjump = false
+player.radius = 9
+
+prev_t = 0
+
+function move()
+	local dt = time() - prev_t
+	local dx = 0
+
+	--player movement
+	if btn(0) then
+		dx -= 1
+	end
+
+	if btn(1) then
+		dx += 1
+	end
+
+	if btn(2) and player.canjump then
+		player.jumping = true
+		player.canjump = false
+		player.vely = player.jumpvel.y
+		player.jumpt = player.jumpdur
+	end
+
+	--jumping
+	if player.jumpt - dt < 0 then
+		player.jumping = false
+	end
+
+	if player.jumping then
+		-- player.vely = player.jumpvel.y * dt
+		player.jumpt -= dt
+	end
+
+	--gravity
+	player.vely += g.y * dt
+
+	player.x += dx
+	player.y += player.vely * dt
+	
+	if dx > 0 then
+		player.dir = 1
+	elseif dx < 0 then
+		player.dir = 0
+	end
+
+	if player.x < 12 then
+		player.x = 12
+	elseif player.x > 316 then
+		player.x = 316
+	end
+
+	if player.y > floor then
+		player.y = floor
+		player.vely = 0
+		player.jumping = false
+		player.canjump = true
+	end
+
+	prev_t = time()
+	
+	if player.x - cam_coords.x > 80 then
+		cam_coords.x = player.x - 80
+	elseif player.x - cam_coords.x < 20 then
+		cam_coords.x = player.x - 20
+	end
+	
+	if cam_coords.x < 0 then
+		cam_coords.x = 0
+	elseif cam_coords.x > 200 then
+		cam_coords.x = 200
+	end
+
+end
+
+function cust_move()
+	--customer backs away if player too close
+	if customer.x - player.x < 40 and customer.dir == 0 then
+		customer.x += .2
+	elseif customer.x - player.x > -40 and customer.dir == 1 then
+		customer.x -= .2
+	end
+	
+	if customer.x > 312 then
+		customer.x = 312
+	elseif customer.x < 0 then
+		customer.x = 0
+	end
+	
+	--customer always faces player
+	if (customer.x - player.x) > 0 then
+		customer.dir = 0
+	elseif (customer.x - player.x) < 0 then
+		customer.dir = 1
+	end
+	
+	if ticks % 30 == 0 and rnd(100) < 50 then
+		local proj = {
+			dir = customer.dir,
+			x = customer.x - 16,
+			y = customer.y - 3,
+			tpe = 0
+			}
+		if proj.dir == 1 then
+			proj.x = customer.x + 8
+		end
+		add(projectiles, proj)
+	end
+end
+
+function update_projectiles()
+	for proj in all(projectiles) do
+		if proj.dir == 0 then
+			proj.x -= 1.5
+		else
+			proj.x += 1.5
+		end
+		if hit(proj) then
+			if proj.tpe == 0 then
+				player.health -= .2
+			elseif proj.tpe == 1 then
+				customer.health -= .02
+			end
+			del(projectiles, proj)
+		end
+	end
+end
+
+function update_throwables()
+	for item in all(throwables) do
+		if item.lift == true then
+			player.action_time = 2
+			if player.dir == 0 then
+				item.x = player.x
+			else
+				item.x = player.x - 8
+			end
+			item.y = player.y - 27
+		end
+		if item.air then
+			if item.airdir == 1 then
+				item.x += 1
+			else
+				item.x -= 1
+			end
+			item.y = item.airy + .008 * (item.x - item.airx - 10)^2
+			if item.y > 56 then
+				item.air = false
+				item.y = 56
+				if item.x > 320 then
+					item.x = 304
+				end
+				if item.x < 0 then
+					item.x = 0
+				end
+				if item.x < customer.x + 12
+				and item.x > customer.x - 12 then
+					customer.health -= .2
+				end
+			end
+		end
+	end
+end
+
+function hit(proj)
+	if proj.tpe == 0 then
+		if proj.dir == 0 then
+			return proj.x > player.x - 5
+						and proj.x < player.x + 5
+						and proj.y > player.y - 11
+						and proj.y < player.y + 12
+		else
+			return proj.x + 8 > player.x - 5
+						and proj.x + 8 < player.x + 5
+						and proj.y > player.y - 11
+						and proj.y < player.y + 12
+		end
+	elseif proj.tpe == 1 then
+		if proj.dir == 0 then
+			return proj.x > customer.x - 8
+						and proj.x < customer.x + 8
+						and proj.y > customer.y - 16
+						and proj.y < customer.y + 16
+		else
+			return proj.x + 8 > customer.x - 8
+						and proj.x + 8 < customer.x + 8
+						and proj.y > customer.y - 16
+						and proj.y < customer.y + 16
+		end
+	end
+end
+-->8
+--gameover
+
+function update_gameover()
+end
+
+function draw_gameover()
+	rectfill(cam_coords.x, 80, cam_coords.x + 128, 128, 0)
+	rect(cam_coords.x, 80, cam_coords.x + 127, 127, 10)
+	if player.health == 0 then
+		print("you lost!", cam_coords.x + 5, 85, 7)
+	elseif customer.health == 0 then
+		player.spr = 70
+		customer.spr = 136
+		drawPC()
+		print("you won!", cam_coords.x + 5, 85, 7)
+	end
+	print("corporate will hear about", cam_coords.x + 5, 95, 7)
+	print("this")
 end
 __gfx__
-00000000bbbbbbbb555555550000666666666666aaaaaaaa5555555555555555bbbbbbbbbbbbbbbb555555555555555555555555555555550000000000000000
-00000000bbbbbbbb555555550000666666666666aaaaaaaa5555555555555555bbbb666555555555555555555555555565555555555555560000000000000000
+00000000bbbbbbbb555555550000666666666666aaaaaaaa5555555555555555bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb55555555555555550000000000000000
+00000000bbbbbbbb555555550000666666666666aaaaaaaa5555555555555555bbbb666555555555bb666655555555bb65555555555555560000000000000000
 00700700bbbbbbbb555555550000666666666666aaaaaaaa5555555555555555bbbb688888887775b666666666dddd5b66666666566666660000000000000000
 0007700088888888555555550000666666666666aaaaaaaa4444444444444400bbbb688777877885b66ddddddddddd5b66666666566666660000000000000000
 0007700088888888555555556666000066666666aaaaaaaa4444444444000000bbbb687787778885b60000dddd00005b66666666566666660000000000000000
 00700700bbb6fbbb555555556666000066666666aaaaaaaa0000000000000000bbbb677888778885b55555d5555555db66666666566666660000000000000000
 00000000bbb6fbbb555555556666000066666666aaaaaaaa5511111111115555bbbb655555555555bd6666666666665b66666666566666660000000000000000
 00000000bbb6fbbb555555556666000066666666aaaaaaaa5511111111115555bbbb66995cc5bb55bd65dddddddd5d5b66666666566666660000000000000000
-bbbbbbbbbbbbbbbbbbb6fbbb66066066bbbbbbbbbbbbbbbb5577766666115555bbbb66ac5c76a355bd65566666655d5b66666666566666660000000000000000
-bbbbbbbbbbbbbbbbbbb6fbbb66066066bbbbbbbbbbbbbbbb5577766666615555bbbb669967c6b365bd65655555565d5b66666666566666660000000000000000
-a9bbbbbbbbbbbbbbbbb6fbbb00000000bb0888fbbbbbbbbb5577766666615555bbbbb6656656656bbd656666666d5d5b66666666566666660000000000000000
-bbbbbbbbbbb9a9a9bbb6fbbb66066066bb0888fbbbbbbbbb5577766666615555bbbbb6666666666bbd65666666dd5d5b66666666566666660000000000000000
-bbbbbbbbbbbb999bbbb6fbbb66066066bb0888fbbbbbbbbb5577766666615555bbbbb5565565565bbd656666dddd5d5b66656666566665660000000000000000
+a9bbbbbb9a9a9bbbbbb6fbbb66066066bbbbbbbbbbbbbbbb5577766666115555bbbb66ac5c76a355bd65566666655d5b66666666566666660000000000000000
+bbbbbbbbb999bbbbbbb6fbbb66066066bbbbbbbbbbbbbbbb5577766666615555bbbb669967c6b365bd65655555565d5b66666666566666660000000000000000
+bbbbbbbbbbbbbbbbbbb6fbbb00000000bb0888fbbbbbbbbb5577766666615555bbbbb6656656656bbd656666666d5d5b66666666566666660000000000000000
+bbbbbbbbbbbbbbbbbbb6fbbb66066066bb0888fbbbbbbbbb5577766666615555bbbbb6666666666bbd65666666dd5d5b66666666566666660000000000000000
+bbbbbbbbbbbbbbbbbbb6fbbb66066066bb0888fbbbbbbbbb5577766666615555bbbbb5565565565bbd656666dddd5d5b66656666566665660000000000000000
 bbbbbbbbbbbbbbbbbbb6fbbb00000000bb0888fbbbbbbbbb5577766666615555bbbbb6555555556bbd65dddddddd5d5b66665666566656660000000000000000
 bbbbbbbbbbbbbbbbbbb6fbbb66066066bb0888fbbbbbbbbb5577766666615555bbbbb6555555556bbd6655555555dd5b66665666566656660000000000000000
 bbbbbbbbbbbbbbbbbbb6fbbb66066066bb0888fbbbbbbbbb5577666666615555bbbbb5555555555bb566dddddddddd5b66665666566656660000000000000000
@@ -115,11 +778,11 @@ bbbbbabfb9bbbbbbbbbbbabfb9bbbbbbbbb11acfb9abbbbbbbb1ccbfb91cbbbbbbbbabfb9bbbbbbb
 bbbbbb1ccbbbbbbbbbbbbb1cffbffbbbbb11ccccc11cbbbbbbb11c1ccb1cbbbbbbbb11cc1bbbbbbb0000000000000000bbb1efcc900000bbbbbb1c0000000bbb
 bbbb11ccc1bbbbbbbbbb11cfff1ffbbbbb1ccccccccccfffbbbbccccc1ccbbbbbbb1cccc1bbbbbbb0000000000000000bbb0efccf00000bbbbbbce0000000fbb
 bbbb1cccccbbbbbbbbbb1cffccc1fbbbbb1cffcccbbbbbffbbbbcccccccbbbbbbb1ccccccbbbbbbb0000000000000000bbb0cf0cc00000bbbbbbcef00000ffbb
-bbb11ccccccbb55bbbb11ffcccccfbbbbbfffccccbbbbbbbbbbbbcccccbbbbbbbb1cbccccbbbbbbb0000000000000000bbbb0fff00000bbbbbbbbfff00fffbbb
-bbbccccccccb5555bbbcffcccccffbbbbbbbbcccc0bbbbbbbbbbbcccccbbbbbbbcccbccccbbbbbbb0000000000000000bbbb00fff0e00bbbbbbbbbfff0ffbbbb
-bbbfbccccceb555bbbbffcccccbfbbbbbbbb404500bbbbbbbbbbbcccccbbbbbb4cc44455555555550000000000000000bbbb800b00bbbbbbbbbbbb800800bbbb
-bbbfb04054e55bbbbbbbb04054bbbbbbbbb00000000bbbbbbbbbb04054bbbbbb4ff4455555555bbb0000000000000000bbbb88b800bbbbbbbbbbbb88b88bbbbb
-bbbfb0000055bbbbbbbbb00000bbbbbbbbb00000000bbbbbbbbbb00000bbbbbb44ff40000ff5bbbb0000000000000000bbbbbbb88bbbbbbbbbbbbbbbbbbbbbbb
+bbb11ccccccbb66bbbb11ffcccccfbbbbbfffccccbbbbbbbbbbbbcccccbbbbbbbb1cbccccbbbbbbb0000000000000000bbbb0fff00000bbbbbbbbfff00fffbbb
+bbbccccccccb6666bbbcffcccccffbbbbbbbbcccc0bbbbbbbbbbbcccccbbbbbbbcccbccccbbbbbbb0000000000000000bbbb00fff0e00bbbbbbbbbfff0ffbbbb
+bbbfbccccceb666bbbbffcccccbfbbbbbbbb404500bbbbbbbbbbbcccccbbbbbb4cc44455555555550000000000000000bbbb800b00bbbbbbbbbbbb800800bbbb
+bbbfb04054e66bbbbbbbb04054bbbbbbbbb00000000bbbbbbbbbb04054bbbbbb4ff4455555555bbb0000000000000000bbbb88b800bbbbbbbbbbbb88b88bbbbb
+bbbfb0000066bbbbbbbbb00000bbbbbbbbb00000000bbbbbbbbbb00000bbbbbb44ff40000ff5bbbb0000000000000000bbbbbbb88bbbbbbbbbbbbbbbbbbbbbbb
 bbbbb00b005fbbbbbbbbb00b00bbbbbbbbb000bbb00bbbbbbbbbb00b00bbbbbbbbbb00b00bbbbbbb0000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbb00b00bbbbbbbbbbb00b00bbbbbbbb000bbbb00bbbbbbbbbb00b00bbbbbbbbbb00b00bbbbbbb0000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbbb00b00bbbbbbbbbbb00b00bbbbbbb000bbbbb00bbbbbbbbbb00b00bbbbbbbbbb00b00bbbbbbb0000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -136,38 +799,38 @@ bbbb88bb88bbbbbbbbbb88bb88bbbbbb88bbbbbbb888bbbbbbbb88bbb88bbbbbbbb88bb888bbbbbb
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbbb000bb44bbbbbbbbbbbbbbbbbbbbbbbbbbbb44bbbbbbbbbbbbbbbbbbbbbfffb00fff44bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb000008944bbbbbbbbbbbbbbbbbbbbbb00008944bbbbbbbbbbbbbbbbbbbbbfb0000f8944bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbb00000000894bbbbbbbbbbbbbbbbbbbb0000000894bbbbbbbbbbbbbbbbbbbbb000000f0894bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbb4fff449b9bbbbbbbbbbbbbbbbbbbbbb4fff49b4bbbbbbbbbbbbbbbbbbbbbbf4fff4f9b4bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbb41f14f9bbbbbbbbbbbbbbbbbbbbbbbb41f14fbbbbbbbbbbbbbbbbbbbbbbbbf41e14f9bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbb4fffe49bbbbbbbbbbbbbbbbbbbbbbbb4fffe4bbbbbbbbbbbbbbbbbbbbbbbb84ffff88bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb9bfb4bbbbbbbbbbbbbbbbbbbbbbbbb49bf8422bbbbbbbbbbbbbbbbbbbbbb829bfb882bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbffbff82bbbbbbbbbbbbbbbbbbbbbbbbb8228888822bbbbbbbbbbbbbbbbbbbbb82b882822bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbff1fff822bbbbbbbbbbbbbbbbbbbfff88888888882bbbbbbbbbbbbbbbbbbbbb88288888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbf1888ff82bbbbbbbbbbbbbbbbbbbffbbbbb888ff82bbbbbbbbbbbbbbbbbbbbbb8888888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbf88888ff22bbbbbbbbbbbbbbbbbbbbbbbbb8888fffbbbbbbbbbbbbbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbff88888ff8bbbbbbbbbbbbbbbbbbbbbbbb08888bbbbbbbbbbbbbbbbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbfb88888ffbbbbbbbbbbbbbbbbbbbbbbbb005404bbbbbbbbbbbbbbbbbbbbbbbbb88888bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb45040bbbbbbbbbbbbbbbbbbbbbbbbb00000000bbbbbbbbbbbbbbbbbbbbbbbb45040bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00000bbbbbbbbbbbbbbbbbbbbbbbbb00000000bbbbbbbbbbbbbbbbbbbbbbbb00000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbb00bbb000bbbbbbbbbbbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbb00bbbb000bbbbbbbbbbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbb00bbbbb000bbbbbbbbbbbbbbbbbbbbbb00b00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00b000bbbbbbbbbbbbbbbbbbbbbbbb00bbbbb000bbbbbbbbbbbbbbbbbbbbb000b000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00bb00bbbbbbbbbbbbbbbbbbbbbbbb00bbbbbb000bbbbbbbbbbbbbbbbbbbb00bbb00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00bb00bbbbbbbbbbbbbbbbbbbbbbbb00bbbbbbb00bbbbbbbbbbbbbbbbbbbb00bbb00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb00bb00bbbbbbbbbbbbbbbbbbbbbbbb00bbbbbbb00bbbbbbbbbbbbbbbbbbbb00bbb00bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-bbbbbbbbbbbbbbb88bb88bbbbbbbbbbbbbbbbbbbbbbb888bbbbbbb88bbbbbbbbbbbbbbbbbbbb88bbb88bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222222bbbb221bbbbb21bbbbbbb21bb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb21bb21bbb21b21bbbb21bbbbbb221bb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2121bbbb21b21bbbb21bbbbb2121bb
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb21bbbbbb221bbbbb21bbbbbb21bbb
+bbbbbbbbbbbb11122111bbbbbbbbbbbbbbbbbbbbbbbb11122111bbbbbbbbbbbbbbbbbbbbbbbb11122111bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbb1222222221bbbbbbbbbbbbbbbbbbbbbb1222222221bbbbbbbbbbbbbbbbbbbbbb1222222221bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbbb122111122221bbbbbbbbbbbbbbbbbbbb122111122221bb1bbbbbbbbbbbbbbbbb122111142221bb1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbbb1221feee11221bbbbbbbbbbbbbbbbb1b1221feee11221b11bbbbbbbbbbbbbb1b1221feee51221b11bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+bbbbbbbb1121ffeeeee12211bbbbbbbbbbbbbbb11121f0fe0ee1221d1bbbbbbbbbbbbbb11121fffeeee1521d1bbbbbbb00000000000000000000000000000000
+bbbbbbb1d12f70fe70e122dd1bbbbbbbbbbbbbb1d12f780078e122dd1bbbbbbbbbbbbbb1d12f70ff70e142dd1bbbbbbb00000000000000000000000000000000
+bbbbbbb1dd2f00ff00ee12dd1bbbbbbbbbbbbbb1dd2f88ff88ee12dd1bbbbbbbbbbbbbb1dd2fccffccee44dd1bbbbbbb00000000000000000000000000000000
+bbbbbbbb1d2fffefffee12dd1bbbbbbbbbbbbbbb1d2fffefffee12dd1bbbbbbbbbbbbbbb1d2ffceffcee12dd1bbbbbbb00000000000000000000000000000000
+bbbbbbbb1d2eff44fee12dd1bbbbbbbbbbbb6bbb1d2eff00fee12dd1bbbbbbbbbbbbbbbb1d2eff44fee12dd1bbbbbbbb00000000000000000000000000000000
+bbbbbbbbb112efffee12211bbbbbbbbb666046b5b112e0ff0e12211bbbbbbbbbbbbbbbbbb112effffe12211bbbbbbbbb00000000000000000000000000000000
+bbbbbbbbbb112222222112bbbbbbbbbbb6660442bb112222222112bbbbbbbbbbbbb22222bb112222222112bbbbbbbbbb00000000000000000000000000000000
+bbbbbbbbbb2222221112222bbbbbbbbbbbbb2212222222221112222bbbbbbbbbbbbb2212222222221112222bbbbbbbbb00000000000000000000000000000000
+bbbbbbbbb222222222222222bbbbbbbbbbbb21022222222222222222bbbbbbbbbbbb21222225222222222222bbbbbbbb00000000000000000000000000000000
+bbbbbbbb22222222222212222bbbbbbbbbbb002222222222222212222bbbbbbbbbbbbb2222522222222212222bbbbbbb00000000000000000000000000000000
+bbbbbbb2222126666622122222bbbbbbbbbbbbb1222226666622122222bbbbbbbbbbbbb1222244666622122222bbbbbb00000000000000000000000000000000
+bbbbbb222212666666622122222bbbbbbbbbbbbb1122666666622122222bbbbbbbbbbbbb1142646666622122222bbbbb00000000000000000000000000000000
+bbbbb22221226666666222122222bbbbbbbbbbbbbb226666666222122222bbbbbbbbbbbbbb426666665222122222bbbb00000000000000000000000000000000
+bbbbb2221b226666666221b122222bbbbbbbbbbbbb226666666221b122222bbbbbbbbbbbbb225666666521b122222bbb00000000000000000000000000000000
+bbbbb112bb22d66666d221bb21221bbbbbbbbbbbbb22d66666d221bb21222bbbbbbbbbbbbb22d66566d551bb21222bbb00000000000000000000000000000000
+bbbbbbbbbb222ddddd2221bbbb11bbbbbbbbbbbbbb222ddddd2221bbbb11bbbbbbbbbbbbbb222ddddd2221bb7711bbbb00000000000000000000000000000000
+bbbbbbbbbb222222222221bbbbbbbbbbbbbbbbbbbb222222222221bbbbbbbbbbbbbbbbbbbb222222225521bb7bb7bbbb00000000000000000000000000000000
+bbbbbbbbbb222222222221bbbbbbbbbbbbbbbbbbbbb22222222221bbbbbbbbbbbbbbbbbbbbb55222224221b77bb77bbb00000000000000000000000000000000
+bbbbbbbbbbb22221222221bbbbbbbbbbbbbbbbbbbbb2222122222bbbbbbbbbbbbbbbbbbbbbb5522122252bb7777777bb00000000000000000000000000000000
+bbbbbbbbbbb2222112221bbbbbbbbbbbbbbbbbbbbbb2222112221bbbbbbbbbbbbbbbbbbbbbb2522112251b78888887bb00000000000000000000000000000000
+bbbbbbbbbbb22221b1221bbbbbbbbbbbbbbbbbbbbbb22221b1221bbbbbbbbbbbbbbbbbbbbbb52221b1521b77979797bb00000000000000000000000000000000
+bbbbbbbbbb222211b2221bbbbbbbbbbbbbbbbbbbbb222211b2221bbbbbbbbbbbbbbbbbbbbb222211b2221bb979797bbb00000000000000000000000000000000
+bbbbbbbbb122221bb12222bbbbbbbbbbbbbbbbbbb122221bb12222bbbbbbbbbbbbbbbbbbb122221bb12222bbbbbbbbbb00000000000000000000000000000000
+bbbbbbbbb11111bbbb1111bbbbbbbbbbbbbbbbbbb11111bbbb1111bbbbbbbbbbbbbbbbbbb11111bbbb1111bbbbbbbbbb00000000000000000000000000000000
 bbbbbbbbbbbbbbbbbb4444444444bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb60000000000000000000000006bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bbbb00000000bbbbb49aaaaaaaa94bbbbbbbbbbbbbbbbbbbbbbb11111111bbbb6044444444444444444444444406bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 bb005445445400bbb4a44a44a44a44bbbbbbbbbbbbbbbbbbbb116ddddddd11bb0a099909909900090009099000a0bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

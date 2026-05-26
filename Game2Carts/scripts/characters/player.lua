@@ -1,9 +1,9 @@
 -- arcade-style physics constants
-ARCADE_GRAVITY   = 900   -- px/s²  (strong snappy gravity)
-ARCADE_JUMP_VEL  = -250  -- px/s   (initial jump speed, negative = up)
-ARCADE_JUMP_DUR  = 0.18  -- s      (hold-jump window)
-ARCADE_WALK_SPD  = 1     -- px/frame (direct positional, not velocity)
-MAX_FALL_SPD     = 480   -- px/s   (terminal velocity cap)
+ARCADE_GRAVITY   = 700   -- px/s² 
+ARCADE_JUMP_VEL  = -230  -- px/s 
+ARCADE_JUMP_DUR  = 3  -- s 
+ARCADE_WALK_SPD  = 1     -- px/frame
+MAX_FALL_SPD     = 480   -- px/s  
 
 function punch()
 	if player.dir == 0 then
