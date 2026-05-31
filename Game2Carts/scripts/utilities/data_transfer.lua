@@ -1,5 +1,3 @@
--- loader.lua
--- ex; load_sprites(sheet #, file name)
 function load_sprites(sheet, name)
     if sheet == 2 then
         reload(0x1000, 0x1000, 0x0800, name..".p8")

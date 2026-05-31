@@ -3,7 +3,7 @@ version 43
 __lua__
 #include scripts/utilities/talk.lua
 #include scripts/utilities/textbox.lua
-
+#include scripts/utilities/rain.lua
 
 splash_state = 0
 splash_timer = 0
@@ -56,6 +56,7 @@ mbutts = {
 }
 
 function _init()
+    poke(0x5f08, vol * 32)
     music(11)
     talk_timer = 200 
     reading = false
@@ -66,6 +67,7 @@ function _init()
     menuitem(2, "between levels", function()
     load("between_level.p8")
   end)
+    particlesys=new_particle_system(512)
 end
 
 function _update()
@@ -78,6 +80,10 @@ function _update()
         anim_frame = (anim_frame + 1) % #frames
     end
     transition_update()
+
+    --rain update
+    particlesys.rain()
+    particlesys.update()
 
     -- block input while fading
     if is_fading() then return end
@@ -115,8 +121,14 @@ function _update()
        if btnp(5) then splash_state = 2 end 
     --volume option
     elseif splash_state == 5 then
-       if btnp(0) then vol = max(0, vol-1) end
-        if btnp(1) then vol = min(8, vol+1) end
+        if btnp(0) then
+            vol = max(0, vol-1)
+            poke(0x5f08, vol * 32)
+        end
+        if btnp(1) then
+            vol = min(8, vol+1)
+            poke(0x5f08, vol * 32)
+        end
         if btnp(4) then splash_state = 2 end 
     end
 end
@@ -157,8 +169,11 @@ function _draw()
     end
 
     palt(11, true)
-    sspr(frames[anim_frame+1], 40, 16, 24, 11, 180)
+    sspr(frames[anim_frame+1], 40, 16, 24, 11, 180) 
 
+    tb_draw()
+
+    particlesys.draw()
     -- menu options
     if splash_state == 2 then
         for i, p in pairs(mbutts) do
@@ -200,9 +215,10 @@ function _draw()
         rectfill(20, cam_target+40, 20 + vol*11, cam_target+50, 10)
         print("<  >", 48, cam_target+55, 6)
         print("[z] to go back", 20, cam_target+85, 6)
+
+
     end
     transition_draw()
-    tb_draw()
 end
 
 function apply_fade0(i)

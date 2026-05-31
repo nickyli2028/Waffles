@@ -1,8 +1,30 @@
 reading = false
-
+  --mini game food stuff
+  -- 2; coffee catch
+  -- 12; soda fountain
+  -- 96-97; fries
+  -- 101; egg bacon tic tac toe
 tile_types = {
-  [96] = "fight",
-  [97] = "minigame_cc",
+  [2]   = "minigame_cc",
+  [96]  = "minigame_fries",
+  [117] = "minigame_shapes",
+  [101] = "minigame_ttt",
+}
+
+-- cartdata slots (all carts share "fightbufferv1")
+-- slot 0 = reserved by gamedata
+-- slot 1 = minigame handoff: points earned this session
+-- slot 2 = return cart flag (1 = came back from minigame)
+local SLOT_POINTS  = 1
+local SLOT_RETURN  = 2
+local SLOT_PX      = 3
+local SLOT_PY      = 4
+
+local minigame_carts = {
+  minigame_cc     = "coffee_catch.p8",
+  minigame_fries  = "fries.p8",
+  minigame_shapes = "shape_tracer.p8",
+  minigame_ttt = "ttt.p8",
 }
 
 function is_interactable(tile)
@@ -19,20 +41,31 @@ function get_nearby_tile()
     mget(px,     py - 1),
   }
   for _, tile in ipairs(neighbors) do
-    if is_interactable(tile) then
-      return tile
-    end
+    if is_interactable(tile) then return tile end
   end
   if objects then
     for _, obj in pairs(objects) do
-      local ox = obj.x * 8 - cam_x
-      local oy = obj.y * 8 - cam_y
-      if abs(player.x - ox) < 12 and abs(player.y - oy) < 12 then
-        return obj.id
-      end
+        local ox = obj.x * 8
+        local oy = obj.y * 8
+        if abs(player.x - ox) < 12 and abs(player.y - oy) < 12 then
+            return obj.id
+        end
     end
-  end
+end
   return nil
+end
+
+function check_minigame_return()
+  if dget(SLOT_RETURN) == 1 then
+    local pts = dget(SLOT_POINTS)
+    if pts > 0 then add_minigame_points(pts) end
+    player.x = dget(SLOT_PX)
+    player.y = dget(SLOT_PY)
+    dset(SLOT_POINTS, 0)
+    dset(SLOT_RETURN, 0)
+    dset(SLOT_PX, 0)
+    dset(SLOT_PY, 0)
+  end
 end
 
 function interact(tile)
@@ -40,16 +73,15 @@ function interact(tile)
   local type_ = tile_types[tile]
   if not type_ then return end
 
-  if type_ == "minigame_cc" then
-    prev_mode = mode
-    cc_init()
-    mode = "minigame_cc"
-  elseif type_ == "task_order" then
-    prev_mode = mode
-    mode = "task_order"
-  elseif type_ == "fight" then
+  if minigame_carts[type_] then
+    launch_minigame(minigame_carts[type_])
+    return
+  end
+
+  if type_ == "fight" then
     trigger_enemy_fight()
   end
+
   if objects then
     for i, obj in pairs(objects) do
       if type_ == obj.name then
@@ -60,29 +92,19 @@ function interact(tile)
   end
 end
 
-function minigames_update()
-  if mode == "minigame_cc" then
-    cc_update()
-    if cc.state == 0 then
-      mode = prev_mode or "overworld"
-      prev_mode = nil
-    end
-  elseif mode == "task_order" then
-    -- todo
-  end
+function launch_minigame(cart)
+  -- clear handoff so stale points don't carry over
+  dset(SLOT_PX, player.x)
+  dset(SLOT_PY, player.y)
+  dset(SLOT_POINTS, 0)
+  dset(SLOT_RETURN, 0)
+  load(cart)
 end
 
-function minigames_draw()
-  if mode == "minigame_cc" then
-    cc_draw()
-  elseif mode == "task_order" then
-    -- todo
-  end
-end
-
-function in_minigame()
-  return mode == "minigame_cc" or mode == "task_order"
-end
+-- kept as stubs so any lingering references don't error
+function in_minigame()  return false end
+function minigames_update() end
+function minigames_draw()   end
 
 function draw_combat_interact_prompt()
   if throwables then
@@ -100,13 +122,12 @@ function draw_combat_interact_prompt()
   end
 end
 
--- textbox system
 function show_message(msg)
-    tb_init(0, type(msg) == "table" and msg or {msg})
+  tb_init(0, type(msg) == "table" and msg or {msg})
 end
 
 function draw_message()
-    tb_draw()
+  tb_draw()
 end
 
 function draw_interact_prompt()
@@ -127,20 +148,14 @@ end
 function check_interact_input()
   if btnp(4) then
     local nearby = get_nearby_tile()
-    if is_interactable(nearby) then
-      interact(nearby)
-    end
+    if is_interactable(nearby) then interact(nearby) end
   end
 end
 
 function check_street_trigger(x, y)
-    local px = flr(x / 8)
-    local py = flr(y / 8)
-    local tile = mget(px, py)
-    
-    -- check if tile has flag 1 set
-    if fget(tile, 1) then
-        return true
-    end
-    return false
+  local px = flr(x / 8)
+  local py = flr(y / 8)
+  local tile = mget(px, py)
+  if fget(tile, 1) then return true end
+  return false
 end

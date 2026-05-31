@@ -32,7 +32,7 @@ function tb_update()
             tb.char = 0
         else
             reading = false
-            dialogue = 1  -- advance to choice menu when text is done
+            if on_dialogue_done then on_dialogue_done() end
         end
     end
 end
@@ -41,7 +41,6 @@ function tb_draw()
     if reading then
         local cam_offset_x = cam_x or 0
         local cam_offset_y = cam_y or 0
-        -- tb.x and tb.y are now screen offsets (0-127), not world coords
         rectfill(cam_offset_x + tb.x, cam_offset_y + tb.y, cam_offset_x + tb.x + tb.w, cam_offset_y + tb.y + tb.h, tb.col1)
         rect(cam_offset_x + tb.x, cam_offset_y + tb.y, cam_offset_x + tb.x + tb.w, cam_offset_y + tb.y + tb.h, tb.col2)
         print(sub(tb.str[tb.i], 1, tb.char), cam_offset_x + tb.x + 2, cam_offset_y + tb.y + 2, tb.col3)
@@ -58,7 +57,7 @@ function tb_init_mm(voice, string)
         cur = 0,
         char = 0,
         x = 2,
-        y = 120,
+        y = 26,
         w = 121,
         h = 18,
         col1 = 0,

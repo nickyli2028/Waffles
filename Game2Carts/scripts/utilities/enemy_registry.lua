@@ -28,7 +28,7 @@ function trigger_enemy_fight()
   end
 
   local src = (flr(rnd(2)) == 0) and 0x0000 or 0x0800
-  local drc = (flr(rnd(2)) == 0) and 0x1000 or 0x1800
+  local drc = (flr(rnd(2)) == 0) and 0x1000 or 0x0FFF
   reload(drc, src, 0x0800, "bad_coworker.p8")
   cstore(0x1000, 0x1000, 0x0800, "waffles_erics_copy.p8")
 

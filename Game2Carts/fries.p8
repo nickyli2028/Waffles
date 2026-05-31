@@ -1,6 +1,9 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
+local SLOT_POINTS = 1
+local SLOT_RETURN = 2
+local PARENT_CART = "between_level.p8"
 -- page 1: setup + main loop
 
 x = 60                    -- line x
@@ -25,6 +28,14 @@ function _init()
 		music(-1)
 		music(44)
 	end
+
+	menuitem(1, "main menu", function()
+    load("main_menu.p8")
+    end)
+  menuitem(2, "before enemy combat", function()
+    load("waffles_erics_copy.p8")
+    end)
+	
 end
 
 function _update()
@@ -100,6 +111,8 @@ end
 
 function update_gameover()
 	hook.y = 0
+	if btnp(5) then return_to_overworld(money) end
+
 end
 
 function draw_game()
@@ -324,6 +337,14 @@ function draw_fish()
 		end
 	end
 end
+
+function return_to_overworld(pts)
+ cartdata("fightbufferv1")
+ dset(1,pts)
+ dset(2,1)
+ load("between_level.p8")
+end
+
 __gfx__
 00000000000000000000000088000000033333000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000049a000000f7700088000000030333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

@@ -30,6 +30,12 @@ function _init()
 	--3 game ocurring
 	--4 menu
 	--5 press start
+	menuitem(1, "main menu", function()
+    load("main_menu.p8")
+    end)
+  menuitem(2, "before enemy combat", function()
+    load("waffles_erics_copy.p8")
+    end)
 end
 
 function _draw()
@@ -83,11 +89,13 @@ function _update()
 		if(btnp(4)) then 
 			game_state=4 
 		end
+		if(btnp(5)) then return_to_overworld() end
 	elseif(game_state==4) then
 		if(btnp(2) or btnp(3)) then
 			arrow_pos = 1 - arrow_pos
 		elseif(arrow_pos==0 and btnp(4)) then
 			game_state=3
+		elseif(btnp(5)) then return_to_overworld() 
 		elseif(arrow_pos==1) then
 			if(btnp(0) and score_lim>1) then score_lim-=1
 			elseif(btnp(1)  and score_lim<8) then score_lim+=1
@@ -222,6 +230,14 @@ function score_draw()
 	print("❎ score:",81,121)
 	print(score[1],40,121)
 	print(score[2],119,121)
+end
+
+function return_to_overworld()
+ cartdata("fightbufferv1")
+ local pts = score[1] + score[2]
+ dset(1, pts)
+ dset(2, 1)
+ load("between_level.p8")
 end
 __gfx__
 77777770477777047777777074444444448444441111111111111111111111111111111111111111111111111111111111111111000000000000000000000000
