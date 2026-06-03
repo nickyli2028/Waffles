@@ -9,6 +9,7 @@ __lua__
 #include scripts/utilities/transitions.lua
 #include scripts/utilities/talk.lua
 #include scripts/utilities/textbox.lua
+#include scripts/utilities/rain.lua
 
 anims = {
   down  = {64,  66,  68},
@@ -46,8 +47,14 @@ doors={
 hold_timer = 0
 hold_threshold = 5
 
+closed = false
+
 
 function _init()
+  if flr(rnd(100)) == 0 then
+    closed = true
+  end
+
   player = {
     x = 116, y = 444,
     spd = 2,
@@ -123,6 +130,7 @@ function _init()
     1, 
     9)
   
+  particlesys=new_particle_system(512)
 end
 
 function _update()
@@ -202,6 +210,9 @@ function _update()
   update_npcs()
   update_cars()
   update_choice()
+
+  particlesys.rain()
+  particlesys.update()
 end
 
 street_counter = 0
@@ -320,6 +331,10 @@ function _draw()
     end
 end
   transition_draw()
+
+  if current_room_name == "store_front" then
+    particlesys.draw()
+  end
 end
 
 function newcord(where, target)

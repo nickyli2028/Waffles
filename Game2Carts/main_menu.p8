@@ -8,6 +8,7 @@ __lua__
 splash_state = 0
 splash_timer = 0
 splash_delay = 2
+cam_x = 0
 cam_y = 0
 cam_target = 96
 cy = 1

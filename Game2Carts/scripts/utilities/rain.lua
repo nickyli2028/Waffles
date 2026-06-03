@@ -17,7 +17,7 @@ function new_particle_system(maxparticles)
         _x+=_xspeed
         _yspeed+=0.92
         _y+=_yspeed
-        if _y > cam_y + 127 then
+        if _y > cam_y + 127 or _x<cam_x-1 or _x>cam_x+128 then
           _done=true
         end
       end,
@@ -36,7 +36,7 @@ function new_particle_system(maxparticles)
     rain=function()
       local rand=rnd(5)
       for i=1,maxparticles do
-        if _pool[i].launch(rnd(127),-rand,0,rand) then
+        if _pool[i].launch(cam_x+rnd(127),cam_y-rand,0,rand) then
           return
         end
       end

@@ -10,13 +10,22 @@ dialogues = {
         voice = 0,
         lines = {
             "customer: i asked for a\ncheeseburger with no cheese.",
-            "customer: are you even\nlistening to me?"
+            "customer: are you even\nlistening to me?",
+            "customer: let me talk\nto your manager."
         }
     },
 	bench_npc = {
         voice = 0,
         lines = {
             "termie: i prefer pancakes."
+        }
+    },
+    gregg_phillips = {
+        voice = 0,
+        lines = {
+            "gregg phillips:\nteleporting is no fun",
+            "(dev note: gregg\nphillips is the director\nof fema"
+            "he claimed to have\nbeen teleported to a\nwaffle house by god"
         }
     },
 	trenchcoat = {
@@ -37,7 +46,7 @@ dialogues = {
     },
     trenchcoat_yes = {
         voice = 0,
-        lines = {"★⬇🅾✽♪: i knew you would."},
+        lines = {"★⬇🅾✽♪: i knew\nyou would."},
     },
     trenchcoat_no = {
         voice = 0,
