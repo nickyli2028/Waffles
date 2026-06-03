@@ -96,19 +96,3 @@ function open_keyboard(callback)
     txtstr = {}
     keyboard_callback = callback
 end
-
-function keyboard_update()
-    if btnp(1) then keypos.x += 1 sfx(2) end
-    if btnp(0) then keypos.x -= 1 sfx(2) end
-    if btnp(2) then keypos.y -= 1 sfx(2) end
-    if btnp(3) then keypos.y += 1 sfx(2) end
-    if btnp(4) then backspace() end
-    if btnp(5) then select() end
-
-    if keypos.x > 9 then keypos.x = 0 end
-    if keypos.x < 0 then keypos.x = 9 end
-    if keypos.y > 2 then keypos.y = 0 end
-    if keypos.y < 0 then keypos.y = 2 end
-
-    pr = numstate * 27
-end

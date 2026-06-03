@@ -11,7 +11,47 @@ function _init()
 	
 	customer.tpe = flr(rnd(4)) + 1
 	
-	init_throwables()
+	for i = 0, 9 do
+		local item = {
+			x = 0,
+			y = 56,
+			tpe = 1,
+			lifted = false,
+			air = false,
+			airx = 0,
+			airy = 0,
+			dir = 0
+		}
+		if i == 0 then
+			item.x = 137
+			item.tpe = 0
+		elseif i == 1 then
+			item.x = 192
+		elseif i == 2 then
+			item.x = 240
+		elseif i == 3 then
+			item.x = 288
+		else
+			item.tpe = 2
+			if i == 4 then
+				item.x = 176
+			elseif i == 5 then
+				item.x = 208
+				item.dir = 1
+			elseif i == 6 then
+				item.x = 224
+			elseif i == 7 then
+				item.x = 256
+				item.dir = 1
+			elseif i == 8 then
+				item.x = 272
+			else
+				item.x = 304
+				item.dir = 1
+			end
+		end
+		add(throwables, item)
+	end
 
 	--menu: waffle, sweat tea, porkchop, steak, hashbrown, egg, toast
 	for i = 1, 7 do

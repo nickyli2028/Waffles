@@ -110,7 +110,8 @@ function _update()
         if btnp(4) then mbutts[cy*2]() end
         talk_timer -= 1
         if talk_timer <= 0 then
-            say_random(mm)
+            say_random()
+            talk_timer = 300
         end
     --credits menu
     elseif splash_state == 3 then

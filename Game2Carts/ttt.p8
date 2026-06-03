@@ -13,53 +13,34 @@ b_size=96
 t1=b_size/3
 t2=2*b_size/3
 
-score_lim = 2
-
 function _init()
-    cls()
-    reset_game()
-    game_state=5
-    score_lim=2
-    press_start_blink=1
-    arrow_pos=0
-    palt(0,false)
-    palt(4,true)
-    soundflag=0
-    coin_timer=0 coin_face=0 coin_result=-1 coin_done=false
+	cls()
+	reset_game()
+	game_state=5
+	score_lim=2
+	press_start_blink=1
+	arrow_pos=0
+	palt(0,false)
+	palt(4,true)
+	soundflag=0
+	--game_state legend
+	--0 draw
+	--1 player circle win
+	--2 player cross win
+	--3 game ocurring
+	--4 menu
+	--5 press start
+	menuitem(1, "main menu", function()
+    load("main_menu.p8")
+    end)
+  menuitem(2, "before enemy combat", function()
+    load("waffles_erics_copy.p8")
+    end)
 end
 
 function _draw()
 	cls()
 	rectfill(0,0,128,128,1) --background color
-
-	if(game_state==6) then
-        rectfill(20,20,107,107,1)
-        rect(20,20,107,107,9)
-        print("uh oh...",42,28,8)
-        if not coin_done then
-            local w = (coin_timer % 8 < 4) and 20 or 6
-            rectfill(64-w,52,64+w,72,9)
-            rectfill(64-w+1,50,64+w-1,74,9)
-            print("?",61,58,0)
-        elseif coin_result == 1 then
-            rectfill(44,48,84,78,8)
-            rect(44,48,84,78,7)
-            print("heads",52,60,7)
-            print("fight!",50,70,8)
-        else
-            rectfill(44,48,84,78,11)
-            rect(44,48,84,78,7)
-            print("tails",52,60,7)
-            print("safe!",52,70,3)
-        end
-        if coin_done then
-            if coin_timer%40<20 then print("z: continue",36,90,7) end
-        else
-            print("flipping...",36,90,6)
-        end
-        return
-    end
-
 	if(game_state>3) then
 		sspr(0,0,24,24,27,9,72,72) --title 
 		sspr(32,0,5,5,26,112,10,10) --pico icon
@@ -92,123 +73,80 @@ function _draw()
 		elseif(game_state==0) then
 			print("draw!",56,5)
 		elseif(game_state==3 and who==1) then
-			print("your turn (o)",28,5)
+			print("player 🅾️'s turn",33,5)
 		elseif(game_state==3 and who==2) then
-			print("other thinking...",28,5,8)
+			print("player ❎'s turn",33,5)
 		end
 	end
 end
 
 function _update()
-    if(game_state==6) then
-        update_coin_flip()
-        return
-    end
-    if(game_state==5) then
-        press_start_blink+=1
-        if(press_start_blink==30) then press_start_blink=1 end
-        if(btnp(4)) then game_state=3 reset_board() end
-
-    elseif(game_state<4) then
-        -- player is O (1), AI is X (2)
-        -- only process input on player's turn
-        if game_state==3 and who==1 then
-            if(btnp(0) and p_pos[1]>1) then p_pos[1]-=1 end
-            if(btnp(1) and p_pos[1]<3) then p_pos[1]+=1 end
-            if(btnp(2) and p_pos[2]>1) then p_pos[2]-=1 end
-            if(btnp(3) and p_pos[2]<3) then p_pos[2]+=1 end
-            if(btnp(4)) then
-                local idx = p_pos[1]+3*(p_pos[2]-1)
-                if st[idx]==0 then
-                    st[idx]=1
-                    who=2
-                    soundflag=1
-                end
-            end
-        elseif game_state==3 and who==2 then
-            -- AI takes its turn after a short delay
-            ai_timer = (ai_timer or 0) + 1
-            if ai_timer >= 30 then
-                ai_timer = 0
-                ai_move()
-                who=1
-                soundflag=2
-            end
-        elseif game_state<3 then
-            if(btnp(4)) then
-                if score[1]==score_lim then
-                    -- player won, go straight back
-                    return_to_overworld(false)
-                elseif score[2]==score_lim then
-                    -- player lost, coin flip
-                    coin_timer=0 coin_face=0 coin_result=-1 coin_done=false
-                    game_state=6
-                else
-                    reset_board()
-                end
-            end
-        end
-        wincheck()
-    end
-    soundcheck()
+	if(game_state==5)then
+		press_start_blink+=1
+		if(press_start_blink==30) then
+			press_start_blink=1
+		end
+		if(btnp(4)) then 
+			game_state=4 
+		end
+		if(btnp(5)) then return_to_overworld() end
+	elseif(game_state==4) then
+		if(btnp(2) or btnp(3)) then
+			arrow_pos = 1 - arrow_pos
+		elseif(arrow_pos==0 and btnp(4)) then
+			game_state=3
+		elseif(btnp(5)) then return_to_overworld() 
+		elseif(arrow_pos==1) then
+			if(btnp(0) and score_lim>1) then score_lim-=1
+			elseif(btnp(1)  and score_lim<8) then score_lim+=1
+			end
+		end
+	elseif(game_state<4) then
+		--move selector--
+		if(btnp(0) and p_pos[1]>1) then p_pos[1]-=1
+		elseif(btnp(1) and p_pos[1]<3) then p_pos[1]+=1
+		elseif(btnp(2) and p_pos[2]>1) then p_pos[2]-=1
+		elseif(btnp(3) and p_pos[2]<3) then p_pos[2]+=1 
+		end
+		--press--
+		if(btnp(4)) then 
+			if(game_state==3 and st[p_pos[1]+3*(p_pos[2]-1)]==0) then
+				st[p_pos[1]+3*(p_pos[2]-1)]=who
+				who = 3 - who
+				soundflag=who
+			elseif(game_state<3) then
+				reset_board()
+				if(score[1]==score_lim or score[2]==score_lim) then
+					reset_game()
+				end
+			end
+		end
+		--wincheck--
+		if(game_state==3) then
+			if(st[1]==1 and st[2]==1 and st[3]==1) then end_game(1)
+			elseif(st[4]==1 and st[5]==1 and st[6]==1) then end_game(1)
+			elseif(st[7]==1 and st[8]==1 and st[9]==1) then end_game(1)
+			elseif(st[1]==1 and st[4]==1 and st[7]==1) then end_game(1)
+			elseif(st[2]==1 and st[5]==1 and st[8]==1) then end_game(1)
+			elseif(st[3]==1 and st[6]==1 and st[9]==1) then end_game(1)
+			elseif(st[1]==1 and st[5]==1 and st[9]==1) then end_game(1)
+			elseif(st[3]==1 and st[5]==1 and st[7]==1) then end_game(1)
+			
+			elseif(st[1]==2 and st[2]==2 and st[3]==2) then end_game(2)
+			elseif(st[4]==2 and st[5]==2 and st[6]==2) then end_game(2)
+			elseif(st[7]==2 and st[8]==2 and st[9]==2) then end_game(2)
+			elseif(st[1]==2 and st[4]==2 and st[7]==2) then end_game(2)
+			elseif(st[2]==2 and st[5]==2 and st[8]==2) then end_game(2)
+			elseif(st[3]==2 and st[6]==2 and st[9]==2) then end_game(2)
+			elseif(st[1]==2 and st[5]==2 and st[9]==2) then end_game(2)
+			elseif(st[3]==2 and st[5]==2 and st[7]==2) then end_game(2)
+			
+			elseif(st[1]~=0 and st[2]~=0 and st[3]~=0 and st[4]~=0 and st[5]~=0 and st[6]~=0 and st[7]~=0 and st[8]~=0 and st[9]~=0) then end_game(0) end
+		end
+	end
+	soundcheck()
 end
 
-function ai_move()
-    -- try to win
-    local move = find_best(2)
-    -- try to block player
-    if not move then move = find_best(1) end
-    -- take center
-    if not move and st[5]==0 then move=5 end
-    -- take a corner
-    if not move then
-        local corners={1,3,7,9}
-        for _,c in ipairs(corners) do
-            if st[c]==0 then move=c break end
-        end
-    end
-    -- take any open
-    if not move then
-        for i=1,9 do
-            if st[i]==0 then move=i break end
-        end
-    end
-    if move then st[move]=2 end
-end
-
-function find_best(p)
-    local wins={
-        {1,2,3},{4,5,6},{7,8,9},
-        {1,4,7},{2,5,8},{3,6,9},
-        {1,5,9},{3,5,7}
-    }
-    for _,w in ipairs(wins) do
-        local a,b,c = st[w[1]],st[w[2]],st[w[3]]
-        -- two of p and one empty = winning/blocking move
-        if a==p and b==p and c==0 then return w[3] end
-        if a==p and c==p and b==0 then return w[2] end
-        if b==p and c==p and a==0 then return w[1] end
-    end
-    return nil
-end
-
-function wincheck()
-    if game_state~=3 then return end
-    local wins={
-        {1,2,3},{4,5,6},{7,8,9},
-        {1,4,7},{2,5,8},{3,6,9},
-        {1,5,9},{3,5,7}
-    }
-    for _,w in ipairs(wins) do
-        if st[w[1]]~=0 and st[w[1]]==st[w[2]] and st[w[2]]==st[w[3]] then
-            end_game(st[w[1]])
-            return
-        end
-    end
-    local full=true
-    for i=1,9 do if st[i]==0 then full=false break end end
-    if full then end_game(0) end
-end
 function soundcheck()
 	if(soundflag==1) then sfx(1) --x played
 	elseif(soundflag==2) then sfx(3) --o played
@@ -285,21 +223,6 @@ function symbol_draw()
   end
 end
 
-function update_coin_flip()
-    coin_timer += 1
-    local flip_rate = coin_timer < 60 and 4 or (coin_timer < 90 and 8 or 16)
-    if coin_timer % flip_rate == 0 then
-        coin_face = 1 - coin_face
-    end
-    if coin_timer >= 100 and not coin_done then
-        coin_done = true
-        coin_result = flr(rnd(2)) == 0 and 1 or 0
-        coin_face = coin_result == 1 and 0 or 1
-    end
-    if coin_done and btnp(4) then
-        return_to_overworld(coin_result == 1)
-    end
-end
 
 function score_draw()
 	color(7)
@@ -309,13 +232,12 @@ function score_draw()
 	print(score[2],119,121)
 end
 
-function return_to_overworld(do_fight)
-    cartdata("fightbufferv1")
-    local pts = score[1] >= score_lim and 1 or 0
-    dset(5, pts)
-    dset(2, 1)
-    dset(7, do_fight and 1 or 0)
-    load("between_level.p8")
+function return_to_overworld()
+ cartdata("fightbufferv1")
+ local pts = score[1] + score[2]
+ dset(1, pts)
+ dset(2, 1)
+ load("between_level.p8")
 end
 __gfx__
 77777770477777047777777074444444448444441111111111111111111111111111111111111111111111111111111111111111000000000000000000000000
