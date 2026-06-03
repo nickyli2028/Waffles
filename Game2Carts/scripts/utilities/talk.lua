@@ -21,7 +21,7 @@ dialogues = {
         voice = 0,
         lines = {
             "gregg phillips:\nteleporting is no fun",
-            "(dev note: gregg\nphillips is the director\nof fema"
+            "(dev note: gregg\nphillips is the director\nof fema",
             "he claimed to have\nbeen teleported to a\nwaffle house by god"
         }
     },
