@@ -17,7 +17,7 @@ function new_particle_system(maxparticles)
         _x+=_xspeed
         _yspeed+=0.92
         _y+=_yspeed
-        if _y > cam_y + 127 or _x<cam_x-1 or _x>cam_x+128 then
+        if _y>cam_y+127 or _x<cam_x-1 or _x>cam_x+128 then
           _done=true
         end
       end,

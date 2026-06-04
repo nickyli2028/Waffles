@@ -81,3 +81,26 @@ blk=0
 numstate=0
 keypos={x=0,y=0}
 dspos={x=0,y=0}
+
+function init_throwables()
+  throwables = {}
+  local positions = {
+    {x=137, tpe=0, dir=0},
+    {x=192, tpe=1, dir=0},
+    {x=240, tpe=1, dir=0},
+    {x=288, tpe=1, dir=0},
+    {x=176, tpe=2, dir=0},
+    {x=208, tpe=2, dir=1},
+    {x=224, tpe=2, dir=0},
+    {x=256, tpe=2, dir=1},
+    {x=272, tpe=2, dir=0},
+    {x=304, tpe=2, dir=1},
+  }
+  for _, p in ipairs(positions) do
+    add(throwables, {
+      x=p.x, y=56, tpe=p.tpe,
+      lifted=false, air=false,
+      airx=0, airy=0, dir=p.dir
+    })
+  end
+end

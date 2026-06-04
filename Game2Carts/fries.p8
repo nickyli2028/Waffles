@@ -4,7 +4,7 @@ __lua__
 local SLOT_POINTS = 1
 local SLOT_RETURN = 2
 local PARENT_CART = "between_level.p8"
--- page 1: setup + main loop
+order_ready = false
 
 x = 60                    -- line x
 hook = {x = 60, y = 0, hooked = false}
@@ -21,6 +21,12 @@ ticks = 0
 money = 0
 ♥ = 3
 
+-- coin flip state
+coin_timer   = 0
+coin_face    = 0
+coin_result  = -1
+coin_done    = false
+
 function _init()
 	if game_state == 0 then
 		music(0)
@@ -28,56 +34,58 @@ function _init()
 		music(-1)
 		music(44)
 	end
-
-	menuitem(1, "main menu", function()
-    load("main_menu.p8")
-    end)
-  menuitem(2, "before enemy combat", function()
-    load("waffles_erics_copy.p8")
-    end)
-	
 end
 
 function _update()
-	ticks += 1
-	if ticks == 30 then ticks = 1 end
-	
-	if game_state == 0 then
-		update_splash()
-	elseif game_state == 1 then
-		update_game()
-	elseif game_state == 2 then
-		update_gameover()
-	end
+    ticks += 1
+    if ticks == 30 then ticks = 1 end
+    
+    if game_state == 0 then
+        update_splash()
+    elseif game_state == 1 then
+        update_game()
+    elseif game_state == 2 then
+        update_gameover()
+    elseif game_state == 3 then
+        update_coin_flip()
+    end
 end
 
 function _draw()
-	cls(7)
-	map(0, 0, 0, 0, 16, 32)
-	
-	-- camera follow
-	if hook.y > 120 and cam_y < 120 then
-		cam_y += 5
-	elseif hook.y < 120 and cam_y > 0 then
-		cam_y -= 5
-	end
-	camera(cam_x, cam_y)
-	
-	if game_state == 0 then
-		draw_splash()
-	elseif game_state == 1 then
-		draw_game()
-	elseif game_state == 2 then
-		draw_gameover()
-	end
+    cls(7)
+    map(0, 0, 0, 0, 16, 32)
+    
+    if hook.y > 120 and cam_y < 120 then
+        cam_y += 5
+    elseif hook.y < 120 and cam_y > 0 then
+        cam_y -= 5
+    end
+    camera(cam_x, cam_y)
+    
+    if game_state == 1 then
+        draw_game()
+        -- debug: reset camera to draw at fixed position
+        camera(0, 0)
+        print("reel:"..tostring(reel_state), 2, 20, 8)
+        print("throw:"..tostring(throw_state), 2, 28, 8)
+        camera(cam_x, cam_y)
+    elseif game_state == 0 then
+        draw_splash()
+    elseif game_state == 2 then
+        draw_gameover()
+    elseif game_state == 3 then
+        camera(0,0)
+        draw_coin_flip()
+    end
 end
 -->8
 -- page 2: core game logic
 
 function update_splash()
-	if btn(5) then
-		game_state = 1
-	end
+    if btn(5) then
+        order_ready = false
+        game_state = 1
+    end
 end
 
 function draw_splash()
@@ -93,26 +101,34 @@ function draw_splash()
 end
 
 function update_game()
-	if money > 25 then fishing_line = 1 end
-	if money > 49 or ♥ == 0 then
-		game_state = 2
-	end
-	
-	if hook.y == 0 then
-		reel_state = false
-		throw_state = false
-		hook.hooked = false
-	end
-	
-	update_fish()
-	update_cast()
-	update_hook()
+    if money >= 30 and not order_ready then
+        order_ready = true
+    end
+
+    if money > 49 or ♥ == 0 then
+        game_state = 2
+    end
+
+    if order_ready and btnp(5) then
+        local pts = money >= 30 and 1 or 0
+        return_to_overworld(pts)
+    end
+
+    if fishing_line == 0 then
+        if money > 25 then fishing_line = 1 end
+    end
+
+    update_fish()
+    update_cast()
+    update_hook()
 end
 
 function update_gameover()
-	hook.y = 0
-	if btnp(5) then return_to_overworld(money) end
-
+    hook.y = 0
+    if btnp(4) then
+        coin_timer=0 coin_face=0 coin_result=-1 coin_done=false
+        game_state = 3
+    end
 end
 
 function draw_game()
@@ -121,41 +137,26 @@ function draw_game()
 	spr(66, hook.x, hook.y)
 	curve()
 	draw_fish()
+
+	if order_ready then
+		print("order ready!", 30, 14, 11)
+		print("o: cash out", 34, 22, 6)
+	end
 end
 
 function draw_gameover()
-	rectfill(10, 20, 114, 104, 9)
-	print("just some deep fry", 28, 30, 0)
-	if money > 49 then
-		print("eww dont tell fda!", 32, 42, 0)
-	else
-		print("call a sanitaion", 24, 42, 0)
-	end
+    rectfill(10, 20, 114, 104, 9)
+    print("just some deep fry", 28, 30, 0)
+    if money > 19 then
+        print("eww dont tell fda!", 32, 42, 0)
+    else
+        print("call a sanitaion", 24, 42, 0)
+    end
+    print("money: $"..money, 36, 60, 7)
+    print("x coin flip", 38, 80, 11)
 end
 -->8
 -- page 3: hook + casting
-
-function update_cast()
-	if throw_state == false and reel_state == false then
-		if btn(⬅️) then x -= 2 end
-		if btn(➡️) then x += 2 end
-		
-		if x > 128 then x = 128 end
-		if x < 0 then x = 0 end
-	end
-	
-	if btn(⬇️) and hook.y == 0 then
-		throw_state = true
-	end
-	
-	if hook.y == 0 then
-		hook.x = x
-	end
-	
-	if throw_state then
-		throw()
-	end
-end
 
 function throw()
 	if fishing_line == 0 then
@@ -167,18 +168,39 @@ function throw()
 	end
 end
 
+function update_cast()
+    if throw_state == false and not hook.hooked then
+        if btn(⬅️) then x -= 2 end
+        if btn(➡️) then x += 2 end
+        if x > 128 then x = 128 end
+        if x < 0 then x = 0 end
+    end
+    
+    if btnp(⬇️) and hook.y == 0 then
+        throw_state = true
+    end
+    
+    if hook.y == 0 then
+        hook.x = x
+    end
+    
+    if throw_state then
+        throw()
+    end
+end
+
 function update_hook()
-	if throw_state == false and reel_state == false then
-		if btn(⬆️) then
-			hook.y -= 2
-		end
-		if hook.y < 0 then hook.y = 0 end
-		if hook.x < 0 then hook.x = 0 end
-		if hook.x > 120 then hook.x = 120 end
-	end
-	
-	local follow_speed = 0.1
-	hook.x += (x - hook.x) * follow_speed
+    if throw_state == false and not hook.hooked then
+        if btn(⬆️) then
+            hook.y -= 2
+        end
+        if hook.y < 0 then hook.y = 0 end
+        if hook.x < 0 then hook.x = 0 end
+        if hook.x > 120 then hook.x = 120 end
+    end
+    
+    local follow_speed = 0.1
+    hook.x += (x - hook.x) * follow_speed
 end
 
 function curve()
@@ -243,15 +265,16 @@ function update_fish()
 			
 			if hook.y == 0 then
 				if     fish.tpe == 0 then money += 5
-				elseif fish.tpe < 4 then money += 7
-				elseif fish.tpe < 6 then money += 10
+				elseif fish.tpe < 4  then money += 7
+				elseif fish.tpe < 6  then money += 10
 				elseif fish.tpe == 6 then money += 15
 				elseif fish.tpe == 7 then money += 25
 				elseif fish.tpe == 8 then money += 8 end
 				
 				fish.hooked = false
-				del(fishes, fish)
 				hook.hooked = false
+				del(fishes, fish)
+				goto continue  -- skip rest of loop for this fish
 			end
 		end
 		
@@ -264,13 +287,14 @@ function update_fish()
 		end
 		
 		if fish.hooked then
-			reel_state = true
 			pull(fish)
 		end
 		
 		if fish.x > 132 or fish.x < -8 then
 			del(fishes, fish)
 		end
+		
+		::continue::
 	end
 end
 
@@ -338,11 +362,60 @@ function draw_fish()
 	end
 end
 
+function update_coin_flip()
+    coin_timer += 1
+    local flip_rate = coin_timer < 60 and 4 or (coin_timer < 90 and 8 or 16)
+    if coin_timer % flip_rate == 0 then
+        coin_face = 1 - coin_face
+    end
+    if coin_timer >= 100 and not coin_done then
+        coin_done = true
+        coin_result = (flr(rnd(2)) == 0) and 1 or 0
+        coin_face = coin_result == 1 and 0 or 1
+    end
+    if coin_done and btnp(4) then
+        local pts = coin_result == 1 and (money >= 30 and 1 or 0) or 0
+        return_to_overworld(pts)
+    end
+end
+
+function draw_coin_flip()
+    cls(0)
+    rectfill(20,20,107,107,1)
+    rect(20,20,107,107,9)
+    print("uh oh...",42,28,8)
+    if not coin_done then
+        local w = (coin_timer % 8 < 4) and 20 or 6
+        local cx = 64
+        local cy = 60
+        rectfill(cx - w, cy - 14, cx + w, cy + 14, 9)
+        rect(cx - w, cy - 14, cx + w, cy + 14, 7)
+        if coin_face == 0 then
+            print("h", cx - 2, cy - 3, 7)
+        else
+            print("t", cx - 2, cy - 3, 7)
+        end
+        print("flipping...", 36, 88, 6)
+    elseif coin_result == 1 then
+        rectfill(44,46,83,74,9)
+        rect(44,46,83,74,7)
+        print("heads!", 50, 56, 11)
+        print("you're ok!", 44, 64, 7)
+        print("x to continue", 30, 88, 9)
+    else
+        rectfill(44,46,83,74,9)
+        rect(44,46,83,74,7)
+        print("tails!", 50, 56, 8)
+        print("back to fight!", 36, 64, 7)
+        print("x to continue", 30, 88, 9)
+    end
+end
+
 function return_to_overworld(pts)
- cartdata("fightbufferv1")
- dset(1,pts)
- dset(2,1)
- load("between_level.p8")
+    cartdata("fightbufferv1")
+    dset(4, pts)
+    dset(2, 1)
+    load("between_level.p8")
 end
 
 __gfx__
